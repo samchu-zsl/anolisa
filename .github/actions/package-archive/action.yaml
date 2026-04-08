@@ -63,9 +63,9 @@ runs:
         echo "| Archive | \`${ARCHIVE_FILE}\` |" >> $GITHUB_STEP_SUMMARY
         echo "| Size | $(du -sh /tmp/archives/${ARCHIVE_FILE} | cut -f1) |" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
-        echo "**Contents preview (first 50 entries):**" >> $GITHUB_STEP_SUMMARY
+        echo "**Contents:**" >> $GITHUB_STEP_SUMMARY
         echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-        tar -tzf /tmp/archives/${ARCHIVE_FILE} | head -50 >> $GITHUB_STEP_SUMMARY
+        tar -tzf /tmp/archives/${ARCHIVE_FILE} >> $GITHUB_STEP_SUMMARY
         echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
 
     # -----------------------------------------------------------------

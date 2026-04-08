@@ -72,7 +72,7 @@ jobs:
   # This is the ONLY artifact accepted by release-publish.yaml
   # =========================================================================
   package-official:
-    name: Package ${{ needs.parse-tag.outputs.component }}-${{ needs.parse-tag.outputs.version }} (official)
+    name: Packaging (official)
     needs: parse-tag
     if: github.event_name == 'push'
     runs-on: ubuntu-22.04
@@ -96,7 +96,7 @@ jobs:
   # NOT used by release-publish.yaml (which only accepts official artifacts).
   # =========================================================================
   package-preview:
-    name: Package ${{ inputs.component }}-${{ inputs.version }} (preview)
+    name: Packaging (preview)
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-22.04
     steps:
