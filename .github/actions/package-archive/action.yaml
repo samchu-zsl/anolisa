@@ -130,7 +130,10 @@ runs:
         fi
 
         # Substitute resolved LICENSE into the build tree without touching the source.
+        # Remove the dangling symlink first (cp -r preserves symlinks, which become
+        # dangling in /tmp/build since the symlink target no longer exists there).
         if [ "${LICENSE_RESOLVED}" = "true" ]; then
+          rm -f "/tmp/build/${ARCHIVE_NAME}/${LICENSE_BUILD_TARGET}"
           cp -p "${LICENSE_REAL_PATH}" "/tmp/build/${ARCHIVE_NAME}/${LICENSE_BUILD_TARGET}"
         fi
 
