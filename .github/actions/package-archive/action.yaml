@@ -88,7 +88,45 @@ runs:
         echo "ARCHIVE_FILE=${ARCHIVE_FILE}" >> $GITHUB_ENV
 
     # -----------------------------------------------------------------
-    # Step 2: Sign archive (os-skills only)
+    # Step 2: Resolve LICENSE
+    #
+    # A LICENSE file may contain only a relative path reference
+    # (e.g. "../../LICENSE") instead of the actual license text. Replace
+    # it with the real file content so the archive is self-contained.
+    # -----------------------------------------------------------------
+    - name: Resolve LICENSE
+      shell: bash
+      run: |
+        ARCHIVE_ROOT="/tmp/build/${ARCHIVE_NAME}"
+        LICENSE_RESOLVED=false
+
+        for license_file in "${ARCHIVE_ROOT}/LICENSE" "${ARCHIVE_ROOT}/license" \
+                            "${ARCHIVE_ROOT}/LICENSE.txt" "${ARCHIVE_ROOT}/license.txt"; do
+          if [ -f "${license_file}" ]; then
+            content=$(cat "${license_file}")
+            if [[ "${content}" =~ ^[./]+(LICENSE|license)(\.(txt|md))?$ ]]; then
+              ref_path="$(dirname "${license_file}")/${content}"
+              if [ -f "${ref_path}" ]; then
+                cp -p "${ref_path}" "${license_file}"
+                LICENSE_RESOLVED=true
+              else
+                echo "ERROR: Referenced LICENSE not found at ${ref_path}"
+                exit 1
+              fi
+            fi
+          fi
+        done
+
+        # Re-pack only if at least one LICENSE was resolved.
+        if [ "${LICENSE_RESOLVED}" = "true" ]; then
+          tar -czf "/tmp/archives/${ARCHIVE_FILE}" \
+            -C /tmp/build "${ARCHIVE_NAME}"
+        fi
+
+        echo "LICENSE_RESOLVED=${LICENSE_RESOLVED}" >> $GITHUB_ENV
+
+    # -----------------------------------------------------------------
+    # Step 3: Sign archive (os-skills only)
     #
     # Signing is automatically applied when component == os-skills.
     # No external sign parameter needed; the action decides internally.
@@ -105,9 +143,9 @@ runs:
           -C /tmp/build "${ARCHIVE_NAME}"
 
     # -----------------------------------------------------------------
-    # Step 3: Sign archive (agent-sec-core only)
+    # Step 4: Sign archive (agent-sec-core only)
     #
-    # Signing is automatically applied when component == agent-sec-core
+    # Signing is automatically applied when component == agent-sec-core.
     # No external sign parameter needed; the action decides internally.
     # -----------------------------------------------------------------
     - name: Sign archive (agent-sec-core)
@@ -122,7 +160,7 @@ runs:
           -C /tmp/build "${ARCHIVE_NAME}"
 
     # -----------------------------------------------------------------
-    # Step 4: Summarize
+    # Step 5: Summarize
     # -----------------------------------------------------------------
     - name: Summarize
       shell: bash
@@ -139,6 +177,9 @@ runs:
         if [ "$SIGNED" = "true" ]; then
           echo "| Signing | ✅ Signed |" >> $GITHUB_STEP_SUMMARY
         fi
+        if [ "${LICENSE_RESOLVED}" = "true" ]; then
+          echo "| LICENSE | ✅ Resolved |" >> $GITHUB_STEP_SUMMARY
+        fi
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "**Contents:**" >> $GITHUB_STEP_SUMMARY
         echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
@@ -146,7 +187,7 @@ runs:
         echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
 
     # -----------------------------------------------------------------
-    # Step 5: Upload artifact
+    # Step 6: Upload artifact
     # -----------------------------------------------------------------
     - name: Upload artifact
       uses: actions/upload-artifact@v4
