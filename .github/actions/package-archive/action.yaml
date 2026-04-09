@@ -67,6 +67,10 @@ runs:
     - name: Resolve LICENSE
       shell: bash
       run: |
+        echo "[DEBUG] pwd=$(pwd)"
+        echo "[DEBUG] SRC_DIR=${SRC_DIR}"
+        ls -la "${SRC_DIR}/LICENSE" 2>&1 || echo "[DEBUG] ${SRC_DIR}/LICENSE NOT FOUND"
+
         LICENSE_RESOLVED=false
         LICENSE_REAL_PATH=""
         LICENSE_BUILD_TARGET=""
@@ -75,6 +79,7 @@ runs:
                            "${SRC_DIR}/LICENSE.txt" "${SRC_DIR}/license.txt"; do
           if [ -f "${src_license}" ]; then
             content=$(cat "${src_license}")
+            echo "[DEBUG] found file: ${src_license}, content=[${content}]"
             if [[ "${content}" =~ ^[./]+(LICENSE|license)(\.(txt|md))?$ ]]; then
               ref_path="$(cd "$(dirname "${src_license}")" && realpath "${content}")"
               if [ -f "${ref_path}" ]; then
