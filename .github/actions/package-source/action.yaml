@@ -1,7 +1,7 @@
-name: Package Archive
+name: Package Source
 description: >
   Build a source archive for the given component and version.
-  Optionally signs the archive (os-skills only) and uploads it as a GitHub Actions artifact.
+  Optionally signs the archive (os-skills, agent-sec-core) and uploads it as a GitHub Actions artifact.
 
 inputs:
   component:
