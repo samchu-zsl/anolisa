@@ -32,7 +32,7 @@ on:
 
 jobs:
   build-rpm:
-    name: "RPM: ${{ inputs.component }} (${{ inputs.arch }})"
+    name: "Build"
     runs-on: ${{ inputs.arch == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-22.04' }}
     container:
       image: alibaba-cloud-linux-4-registry.cn-hangzhou.cr.aliyuncs.com/alinux4/alinux4:latest
@@ -127,42 +127,6 @@ jobs:
           cp "$SPEC_FILE" ~/rpmbuild/SPECS/
           echo "SPEC_BASENAME=$(basename "$SPEC_FILE")" >> $GITHUB_ENV
           echo "EXTRACT_DIR=${EXTRACT_DIR}" >> $GITHUB_ENV
-
-      - name: Build agentsight binary
-        if: inputs.component == 'agentsight'
-        run: |
-          set -euo pipefail
-          # agentsight spec has empty %build — binary must be pre-built
-          SRC_DIR=$(find "$EXTRACT_DIR" -maxdepth 1 -type d | tail -1)
-          cd "$SRC_DIR"
-
-          # If vendor tarball exists, use offline build
-          if ls ~/rpmbuild/SOURCES/*-vendor*.tar.gz 2>/dev/null; then
-            VENDOR_TAR=$(ls ~/rpmbuild/SOURCES/*-vendor*.tar.gz | head -1)
-            mkdir -p .cargo
-            tar -xzf "$VENDOR_TAR" -C .
-            cat > .cargo/config.toml << 'EOF'
-          [source.crates-io]
-          replace-with = "vendored-sources"
-          [source.vendored-sources]
-          directory = "vendor"
-          EOF
-          fi
-
-          cargo build --release
-          # Repack tarball with binary included
-          BINARY="target/release/agentsight"
-          if [ -f "$BINARY" ]; then
-            cp "$BINARY" .
-            # Recreate source tarball with binary
-            PKG_DIR=$(basename "$SRC_DIR")
-            PARENT_DIR=$(dirname "$SRC_DIR")
-            TAR_NAME=$(ls ~/rpmbuild/SOURCES/${PKG_DIR}*.tar.gz 2>/dev/null | head -1 || true)
-            if [ -z "$TAR_NAME" ]; then
-              TAR_NAME=~/rpmbuild/SOURCES/${PKG_DIR}.tar.gz
-            fi
-            tar -czf "$TAR_NAME" -C "$PARENT_DIR" "$PKG_DIR"
-          fi
 
       - name: Build RPM
         run: |

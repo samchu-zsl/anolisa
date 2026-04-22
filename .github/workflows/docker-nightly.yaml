@@ -29,6 +29,9 @@ jobs:
     outputs:
       cosh-version: ${{ steps.cosh.outputs.version }}
       skill-version: ${{ steps.skill.outputs.version }}
+      # TODO: uncomment when agentsight/sec-core are integrated
+      # sight-version: ${{ steps.sight.outputs.version }}
+      # sec-core-version: ${{ steps.sec-core.outputs.version }}
       image-version: ${{ steps.image.outputs.version }}
       image-version-tag: ${{ steps.image.outputs.version_tag }}
     steps:
@@ -49,6 +52,20 @@ jobs:
         with:
           tag-match: "skill/v*"
 
+      # TODO: uncomment when agentsight is integrated
+      # - name: "Version: agentsight"
+      #   id: sight
+      #   uses: ./.github/actions/calculate-version
+      #   with:
+      #     tag-match: "sight/v*"
+
+      # TODO: uncomment when agent-sec-core is integrated
+      # - name: "Version: agent-sec-core"
+      #   id: sec-core
+      #   uses: ./.github/actions/calculate-version
+      #   with:
+      #     tag-match: "sec-core/v*"
+
       - name: "Version: image (os-release)"
         id: image
         uses: ./.github/actions/calculate-version
@@ -62,6 +79,8 @@ jobs:
           echo "|-----------|---------|" >> $GITHUB_STEP_SUMMARY
           echo "| copilot-shell | \`${{ steps.cosh.outputs.version }}\` |" >> $GITHUB_STEP_SUMMARY
           echo "| os-skills | \`${{ steps.skill.outputs.version }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| agentsight | _TODO_ |" >> $GITHUB_STEP_SUMMARY
+          echo "| agent-sec-core | _TODO_ |" >> $GITHUB_STEP_SUMMARY
           echo "| **image** | \`${{ steps.image.outputs.version }}\` (tag: \`${{ steps.image.outputs.version_tag }}\`) |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           if [ "${{ inputs.dry-run }}" = "true" ]; then
@@ -103,33 +122,57 @@ jobs:
           skill-sign-private-key: ${{ secrets.SKILL_SIGN_PRIVATE_KEY }}
           skill-sign-public-key: ${{ vars.SKILL_SIGN_PUBLIC_KEY }}
 
+  # TODO: uncomment when agentsight is integrated
+  # package-sight:
+  #   name: "Package: agentsight"
+  #   runs-on: ubuntu-22.04
+  #   needs: versions
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #       with:
+  #         fetch-depth: 0
+  #     - uses: ./.github/actions/package-source
+  #       with:
+  #         component: agentsight
+  #         version: ${{ needs.versions.outputs.sight-version }}
+  #         artifact-suffix: ".nightly"
+  #         retention-days: "7"
+
+  # TODO: uncomment when agent-sec-core is integrated
+  # package-sec-core:
+  #   name: "Package: agent-sec-core"
+  #   runs-on: ubuntu-22.04
+  #   needs: versions
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #       with:
+  #         fetch-depth: 0
+  #     - uses: ./.github/actions/package-source
+  #       with:
+  #         component: agent-sec-core
+  #         version: ${{ needs.versions.outputs.sec-core-version }}
+  #         artifact-suffix: ".nightly"
+  #         retention-days: "7"
+
   # ===========================================================================
   # Job 3: Build RPMs
   # ===========================================================================
-  rpm-cosh-amd64:
-    name: "RPM: copilot-shell (amd64)"
+  rpm-cosh:
+    name: "RPM: copilot-shell (${{ matrix.arch }})"
     needs: [versions, package-cosh]
+    strategy:
+      matrix:
+        arch: [amd64, arm64]
     uses: ./.github/workflows/_rpm-build.yaml
     with:
       component: copilot-shell
       version: ${{ needs.versions.outputs.cosh-version }}
-      arch: amd64
+      arch: ${{ matrix.arch }}
       source-artifact: "copilot-shell-${{ needs.versions.outputs.cosh-version }}.nightly"
       artifact-suffix: ".nightly"
 
-  rpm-cosh-arm64:
-    name: "RPM: copilot-shell (arm64)"
-    needs: [versions, package-cosh]
-    uses: ./.github/workflows/_rpm-build.yaml
-    with:
-      component: copilot-shell
-      version: ${{ needs.versions.outputs.cosh-version }}
-      arch: arm64
-      source-artifact: "copilot-shell-${{ needs.versions.outputs.cosh-version }}.nightly"
-      artifact-suffix: ".nightly"
-
-  rpm-skill-amd64:
-    name: "RPM: os-skills (amd64)"
+  rpm-skill:
+    name: "RPM: os-skills"
     needs: [versions, package-skill]
     uses: ./.github/workflows/_rpm-build.yaml
     with:
@@ -139,6 +182,38 @@ jobs:
       source-artifact: "os-skills-${{ needs.versions.outputs.skill-version }}.nightly"
       artifact-suffix: ".nightly"
 
+  # TODO: uncomment when agentsight is integrated
+  # rpm-sight:
+  #   name: "RPM: agentsight (${{ matrix.arch }})"
+  #   needs: [versions, package-sight]
+  #   strategy:
+  #     matrix:
+  #       arch: [amd64, arm64]
+  #   uses: ./.github/workflows/_rpm-build.yaml
+  #   with:
+  #     component: agentsight
+  #     version: ${{ needs.versions.outputs.sight-version }}
+  #     arch: ${{ matrix.arch }}
+  #     source-artifact: "agentsight-${{ needs.versions.outputs.sight-version }}.nightly"
+  #     vendor-artifact: "agentsight-vendor-${{ needs.versions.outputs.sight-version }}.nightly"
+  #     artifact-suffix: ".nightly"
+
+  # TODO: uncomment when agent-sec-core is integrated
+  # rpm-sec-core:
+  #   name: "RPM: agent-sec-core (${{ matrix.arch }})"
+  #   needs: [versions, package-sec-core]
+  #   strategy:
+  #     matrix:
+  #       arch: [amd64, arm64]
+  #   uses: ./.github/workflows/_rpm-build.yaml
+  #   with:
+  #     component: agent-sec-core
+  #     version: ${{ needs.versions.outputs.sec-core-version }}
+  #     arch: ${{ matrix.arch }}
+  #     source-artifact: "agent-sec-core-${{ needs.versions.outputs.sec-core-version }}.nightly"
+  #     vendor-artifact: "agent-sec-core-vendor-${{ needs.versions.outputs.sec-core-version }}.nightly"
+  #     artifact-suffix: ".nightly"
+
   # ===========================================================================
   # Job 4: Build and push Docker image
   # ===========================================================================
@@ -147,9 +222,11 @@ jobs:
     runs-on: ubuntu-22.04
     needs:
       - versions
-      - rpm-cosh-amd64
-      - rpm-cosh-arm64
-      - rpm-skill-amd64
+      - rpm-cosh
+      - rpm-skill
+      # TODO: uncomment when agentsight/sec-core are integrated
+      # - rpm-sight
+      # - rpm-sec-core
     steps:
       - uses: actions/checkout@v4
 
@@ -248,6 +325,8 @@ jobs:
           echo "|-----------|---------|" >> $GITHUB_STEP_SUMMARY
           echo "| copilot-shell | \`${{ needs.versions.outputs.cosh-version }}\` |" >> $GITHUB_STEP_SUMMARY
           echo "| os-skills | \`${{ needs.versions.outputs.skill-version }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| agentsight | _TODO_ |" >> $GITHUB_STEP_SUMMARY
+          echo "| agent-sec-core | _TODO_ |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Images" >> $GITHUB_STEP_SUMMARY
           echo "- \`${{ env.GHCR_IMAGE }}:${IMAGE_TAG}\`" >> $GITHUB_STEP_SUMMARY
