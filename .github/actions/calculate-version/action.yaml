@@ -28,9 +28,17 @@ runs:
 
         TAG_MATCH="${{ inputs.tag-match }}"
 
-        git fetch --tags --force
+        # Ensure tags are available (checkout@v4 does NOT fetch tags by default)
+        git fetch origin --tags --force 2>/dev/null || true
+        git fetch origin 'refs/tags/*:refs/tags/*' --force 2>/dev/null || true
+
+        # Debug: show available matching tags
+        echo "::group::Debug: matching tags for ${TAG_MATCH}"
+        git tag -l "$TAG_MATCH" | sort -V | tail -5
+        echo "::endgroup::"
 
         GIT_DESC=$(git describe --tags --match "$TAG_MATCH" --long --dirty --always 2>/dev/null || echo "")
+        echo "::debug::git describe output: ${GIT_DESC}"
 
         # Extract the tag prefix (everything before /v) for stripping
         # e.g. "cosh/v*" → prefix pattern is "*/v"

@@ -5,6 +5,11 @@ on:
     # UTC 16:00 = Beijing 00:00
     - cron: "0 16 * * *"
   workflow_dispatch:
+    inputs:
+      dry-run:
+        description: "Dry-run mode: build images but do NOT push to registries"
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -22,36 +27,21 @@ jobs:
     name: Calculate Versions
     runs-on: ubuntu-22.04
     outputs:
-      # Per-component versions (for RPM building)
       cosh-version: ${{ steps.cosh.outputs.version }}
-      sec-core-version: ${{ steps.sec-core.outputs.version }}
-      sight-version: ${{ steps.sight.outputs.version }}
       skill-version: ${{ steps.skill.outputs.version }}
-      # Image-level version (for Docker tags)
       image-version: ${{ steps.image.outputs.version }}
       image-version-tag: ${{ steps.image.outputs.version_tag }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          fetch-tags: true
 
       - name: "Version: copilot-shell"
         id: cosh
         uses: ./.github/actions/calculate-version
         with:
           tag-match: "cosh/v*"
-
-      - name: "Version: agent-sec-core"
-        id: sec-core
-        uses: ./.github/actions/calculate-version
-        with:
-          tag-match: "sec-core/v*"
-
-      - name: "Version: agentsight"
-        id: sight
-        uses: ./.github/actions/calculate-version
-        with:
-          tag-match: "sight/v*"
 
       - name: "Version: os-skills"
         id: skill
@@ -71,13 +61,15 @@ jobs:
           echo "| Component | Version |" >> $GITHUB_STEP_SUMMARY
           echo "|-----------|---------|" >> $GITHUB_STEP_SUMMARY
           echo "| copilot-shell | \`${{ steps.cosh.outputs.version }}\` |" >> $GITHUB_STEP_SUMMARY
-          echo "| agent-sec-core | \`${{ steps.sec-core.outputs.version }}\` |" >> $GITHUB_STEP_SUMMARY
-          echo "| agentsight | \`${{ steps.sight.outputs.version }}\` |" >> $GITHUB_STEP_SUMMARY
           echo "| os-skills | \`${{ steps.skill.outputs.version }}\` |" >> $GITHUB_STEP_SUMMARY
           echo "| **image** | \`${{ steps.image.outputs.version }}\` (tag: \`${{ steps.image.outputs.version_tag }}\`) |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ inputs.dry-run }}" = "true" ]; then
+            echo "> **Dry-run mode**: images will be built but NOT pushed." >> $GITHUB_STEP_SUMMARY
+          fi
 
   # ===========================================================================
-  # Job 2: Package source archives (each component with its own version)
+  # Job 2: Package source archives
   # ===========================================================================
   package-cosh:
     name: "Package: copilot-shell"
@@ -91,48 +83,6 @@ jobs:
         with:
           component: copilot-shell
           version: ${{ needs.versions.outputs.cosh-version }}
-          artifact-suffix: ".nightly"
-          retention-days: "7"
-
-  package-sec-core:
-    name: "Package: agent-sec-core"
-    runs-on: ubuntu-22.04
-    needs: versions
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - uses: ./.github/actions/package-source
-        with:
-          component: agent-sec-core
-          version: ${{ needs.versions.outputs.sec-core-version }}
-          artifact-suffix: ".nightly"
-          retention-days: "7"
-      - uses: ./.github/actions/package-vendor
-        with:
-          component: agent-sec-core
-          version: ${{ needs.versions.outputs.sec-core-version }}
-          artifact-suffix: ".nightly"
-          retention-days: "7"
-
-  package-sight:
-    name: "Package: agentsight"
-    runs-on: ubuntu-22.04
-    needs: versions
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - uses: ./.github/actions/package-source
-        with:
-          component: agentsight
-          version: ${{ needs.versions.outputs.sight-version }}
-          artifact-suffix: ".nightly"
-          retention-days: "7"
-      - uses: ./.github/actions/package-vendor
-        with:
-          component: agentsight
-          version: ${{ needs.versions.outputs.sight-version }}
           artifact-suffix: ".nightly"
           retention-days: "7"
 
@@ -154,7 +104,7 @@ jobs:
           skill-sign-public-key: ${{ vars.SKILL_SIGN_PUBLIC_KEY }}
 
   # ===========================================================================
-  # Job 3: Build RPMs (each component with its own version × arch)
+  # Job 3: Build RPMs
   # ===========================================================================
   rpm-cosh-amd64:
     name: "RPM: copilot-shell (amd64)"
@@ -178,54 +128,6 @@ jobs:
       source-artifact: "copilot-shell-${{ needs.versions.outputs.cosh-version }}.nightly"
       artifact-suffix: ".nightly"
 
-  rpm-sec-core-amd64:
-    name: "RPM: agent-sec-core (amd64)"
-    needs: [versions, package-sec-core]
-    uses: ./.github/workflows/_rpm-build.yaml
-    with:
-      component: agent-sec-core
-      version: ${{ needs.versions.outputs.sec-core-version }}
-      arch: amd64
-      source-artifact: "agent-sec-core-${{ needs.versions.outputs.sec-core-version }}.nightly"
-      vendor-artifact: "agent-sec-core-${{ needs.versions.outputs.sec-core-version }}.nightly-vendor"
-      artifact-suffix: ".nightly"
-
-  rpm-sec-core-arm64:
-    name: "RPM: agent-sec-core (arm64)"
-    needs: [versions, package-sec-core]
-    uses: ./.github/workflows/_rpm-build.yaml
-    with:
-      component: agent-sec-core
-      version: ${{ needs.versions.outputs.sec-core-version }}
-      arch: arm64
-      source-artifact: "agent-sec-core-${{ needs.versions.outputs.sec-core-version }}.nightly"
-      vendor-artifact: "agent-sec-core-${{ needs.versions.outputs.sec-core-version }}.nightly-vendor"
-      artifact-suffix: ".nightly"
-
-  rpm-sight-amd64:
-    name: "RPM: agentsight (amd64)"
-    needs: [versions, package-sight]
-    uses: ./.github/workflows/_rpm-build.yaml
-    with:
-      component: agentsight
-      version: ${{ needs.versions.outputs.sight-version }}
-      arch: amd64
-      source-artifact: "agentsight-${{ needs.versions.outputs.sight-version }}.nightly"
-      vendor-artifact: "agentsight-${{ needs.versions.outputs.sight-version }}.nightly-vendor"
-      artifact-suffix: ".nightly"
-
-  rpm-sight-arm64:
-    name: "RPM: agentsight (arm64)"
-    needs: [versions, package-sight]
-    uses: ./.github/workflows/_rpm-build.yaml
-    with:
-      component: agentsight
-      version: ${{ needs.versions.outputs.sight-version }}
-      arch: arm64
-      source-artifact: "agentsight-${{ needs.versions.outputs.sight-version }}.nightly"
-      vendor-artifact: "agentsight-${{ needs.versions.outputs.sight-version }}.nightly-vendor"
-      artifact-suffix: ".nightly"
-
   rpm-skill-amd64:
     name: "RPM: os-skills (amd64)"
     needs: [versions, package-skill]
@@ -247,10 +149,6 @@ jobs:
       - versions
       - rpm-cosh-amd64
       - rpm-cosh-arm64
-      - rpm-sec-core-amd64
-      - rpm-sec-core-arm64
-      - rpm-sight-amd64
-      - rpm-sight-arm64
       - rpm-skill-amd64
     steps:
       - uses: actions/checkout@v4
@@ -292,6 +190,7 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Login to GHCR
+        if: ${{ github.event_name == 'schedule' || inputs.dry-run != true }}
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -299,6 +198,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Login to ACR EE
+        if: ${{ github.event_name == 'schedule' || inputs.dry-run != true }}
         uses: aliyun/acr-login@v1
         with:
           login-server: anolisa-registry.cn-hangzhou.cr.aliyuncs.com
@@ -324,7 +224,7 @@ jobs:
           context: .
           file: ./docker/Dockerfile.anolisa
           platforms: linux/amd64,linux/arm64
-          push: true
+          push: ${{ github.event_name == 'schedule' || inputs.dry-run != true }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
@@ -335,14 +235,18 @@ jobs:
       - name: Summary
         run: |
           IMAGE_TAG="${{ needs.versions.outputs.image-version-tag }}"
+          DRY_RUN="${{ inputs.dry-run }}"
+
           echo "## Docker Nightly Build" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "$DRY_RUN" = "true" ]; then
+            echo "> **Dry-run mode**: images were built but NOT pushed to registries." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+          fi
           echo "### Component Versions" >> $GITHUB_STEP_SUMMARY
           echo "| Component | Version |" >> $GITHUB_STEP_SUMMARY
           echo "|-----------|---------|" >> $GITHUB_STEP_SUMMARY
           echo "| copilot-shell | \`${{ needs.versions.outputs.cosh-version }}\` |" >> $GITHUB_STEP_SUMMARY
-          echo "| agent-sec-core | \`${{ needs.versions.outputs.sec-core-version }}\` |" >> $GITHUB_STEP_SUMMARY
-          echo "| agentsight | \`${{ needs.versions.outputs.sight-version }}\` |" >> $GITHUB_STEP_SUMMARY
           echo "| os-skills | \`${{ needs.versions.outputs.skill-version }}\` |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Images" >> $GITHUB_STEP_SUMMARY
