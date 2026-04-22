@@ -37,6 +37,9 @@ jobs:
     container:
       image: alibaba-cloud-linux-4-registry.cn-hangzhou.cr.aliyuncs.com/alinux4/alinux4:latest
     steps:
+      - name: Fix repo mirror
+        run: sed -i -e "s/cloud.aliyuncs/aliyun/g" /etc/yum.repos.d/*.repo
+
       - name: Install build dependencies
         run: |
           dnf install -y rpm-build rpmdevtools dnf-plugins-core tar gzip \

@@ -3,6 +3,9 @@ FROM alibaba-cloud-linux-4-registry.cn-hangzhou.cr.aliyuncs.com/alinux4/alinux4:
 ARG VERSION=unknown
 ARG TARGETARCH
 
+# Fix repo mirror
+RUN sed -i -e "s/cloud.aliyuncs/aliyun/g" /etc/yum.repos.d/*.repo
+
 # Copy pre-built RPMs (organized by architecture)
 COPY rpms/${TARGETARCH}/*.rpm /tmp/rpms/
 COPY rpms/noarch/*.rpm /tmp/rpms/
