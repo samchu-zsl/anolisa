@@ -28,17 +28,21 @@ runs:
 
         TAG_MATCH="${{ inputs.tag-match }}"
 
-        # Ensure tags are available (checkout@v4 does NOT fetch tags by default)
-        git fetch origin --tags --force 2>/dev/null || true
-        git fetch origin 'refs/tags/*:refs/tags/*' --force 2>/dev/null || true
+        # Ensure ALL commits and tags are available.
+        # actions/checkout with fetch-depth:0 only fetches the current branch's
+        # history. Tags created on main AFTER the branch diverged point to commits
+        # not in the local graph, making git-describe unable to reach them.
+        # Fetching the full main branch first ensures those commits exist locally.
+        git fetch origin main --no-tags --quiet 2>&1 || echo "::warning::Failed to fetch main"
+        git fetch origin --tags --force 2>&1 || echo "::warning::Failed to fetch tags"
 
         # Debug: show available matching tags
         echo "::group::Debug: matching tags for ${TAG_MATCH}"
-        git tag -l "$TAG_MATCH" | sort -V | tail -5
+        git tag -l "$TAG_MATCH" | sort -V | tail -10
         echo "::endgroup::"
 
-        GIT_DESC=$(git describe --tags --match "$TAG_MATCH" --long --dirty --always 2>/dev/null || echo "")
-        echo "::debug::git describe output: ${GIT_DESC}"
+        GIT_DESC=$(git describe --tags --match "$TAG_MATCH" --long --dirty --always 2>&1 || echo "")
+        echo "  git describe output: ${GIT_DESC}"
 
         # Extract the tag prefix (everything before /v) for stripping
         # e.g. "cosh/v*" → prefix pattern is "*/v"

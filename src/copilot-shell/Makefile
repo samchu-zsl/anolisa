@@ -59,6 +59,12 @@ install: dist/package.json
 	install -m 644 dist/package.json "$(DESTDIR)$(LIBDIR)/package.json"
 	@if [ -d dist/node_modules ]; then \
 		cp -pr dist/node_modules "$(DESTDIR)$(LIBDIR)/"; \
+		echo "Pruning unused node-pty platform packages (keeping $(VENDOR_PLATFORM)-$(VENDOR_ARCH))..."; \
+		for variant in darwin-arm64 darwin-x64 linux-arm64 linux-x64 win32-arm64 win32-x64; do \
+			if [ "$$variant" != "$(VENDOR_PLATFORM)-$(VENDOR_ARCH)" ]; then \
+				rm -rf "$(DESTDIR)$(LIBDIR)/node_modules/@lydell/node-pty-$$variant"; \
+			fi; \
+		done; \
 	fi
 	# -- arch-independent data --
 	install -d "$(DESTDIR)$(DATADIR)/locales"

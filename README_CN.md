@@ -21,7 +21,7 @@ ANOLISA 是 Anolis OS 的 Agentic 演进，旨在提供 Agentic OS 的最佳实�
 
 ```bash
 # 通过 RPM 安装所有组件
-sudo yum install copilot-shell agent-sec-core agentsight anolisa-skills
+sudo yum install copilot-shell agent-sec-core agentsight os-skills
 
 # 启动 Copilot Shell
 cosh

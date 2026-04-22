@@ -5,7 +5,7 @@
 #   ./scripts/rpm-build.sh <package>        Build a single package
 #   ./scripts/rpm-build.sh all              Build all packages
 #
-# Packages: copilot-shell, agent-sec-core, anolisa-skills, agentsight
+# Packages: copilot-shell, agent-sec-core, os-skills, agentsight
 #
 # Environment variables:
 #   VERSION    Override version for .spec.in templates (default: auto-detect)
@@ -232,14 +232,14 @@ build_agent_sec_core() {
 }
 
 # =============================================================================
-# anolisa-skills
+# os-skills
 # =============================================================================
 build_agentic_os_skills() {
     log "=========================================="
-    log "Building RPM: anolisa-skills"
+    log "Building RPM: os-skills"
     log "=========================================="
 
-    local spec_in="${SKILLS_DIR}/anolisa-skills.spec.in"
+    local spec_in="${SKILLS_DIR}/os-skills.spec.in"
     if [ ! -f "$spec_in" ]; then
         err "Spec template not found: $spec_in"
         return 1
@@ -253,7 +253,7 @@ build_agentic_os_skills() {
     fi
     if [ -z "$version" ]; then
         version="0.0.1"
-        warn "No version specified for anolisa-skills, using default: ${version}"
+        warn "No version specified for os-skills, using default: ${version}"
     fi
 
     local pkg_name
@@ -291,7 +291,7 @@ build_agentic_os_skills() {
         --define "_topdir ${BUILD_DIR}" \
         "$spec_file"
 
-    ok "anolisa-skills RPM built successfully"
+    ok "os-skills RPM built successfully"
 }
 
 # =============================================================================
@@ -371,7 +371,7 @@ usage() {
     echo "Packages:"
     echo "  copilot-shell       Build copilot-shell RPM"
     echo "  agent-sec-core      Build agent-sec-core RPM"
-    echo "  anolisa-skills   Build anolisa-skills RPM"
+    echo "  os-skills        Build os-skills RPM"
     echo "  agentsight          Build agentsight RPM"
     echo "  all                 Build all RPM packages"
     echo ""
@@ -404,7 +404,7 @@ case "$TARGET" in
     agent-sec-core)
         build_agent_sec_core
         ;;
-    anolisa-skills)
+    os-skills)
         build_agentic_os_skills
         ;;
     agentsight)
