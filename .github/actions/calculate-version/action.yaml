@@ -10,10 +10,10 @@ outputs:
   version:
     description: "Calculated version (e.g. 2.1.0 or 2.1.0~nightly.5.abc1234)"
     value: ${{ steps.calc.outputs.version }}
-  version-tag:
+  version_tag:
     description: "Docker-safe tag (~ replaced with -)"
     value: ${{ steps.calc.outputs.version_tag }}
-  is-release:
+  is_release:
     description: "Whether this is a clean release version (true/false)"
     value: ${{ steps.calc.outputs.is_release }}
 
