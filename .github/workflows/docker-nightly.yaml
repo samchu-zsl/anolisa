@@ -17,7 +17,7 @@ permissions:
 
 env:
   GHCR_IMAGE: ghcr.io/alibaba/anolisa
-  ACR_IMAGE: anolisa-registry.cn-hangzhou.cr.aliyuncs.com/agentic-os/alinux
+  ACR_IMAGE: anolisa-registry.cn-hangzhou.cr.aliyuncs.com/agentic-os/anolisa
 
 jobs:
   # ===========================================================================
@@ -274,15 +274,13 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Login to ACR EE
+      - name: Login to ACR
         if: ${{ github.event_name == 'schedule' || inputs.dry-run != true }}
         uses: aliyun/acr-login@v1
         with:
-          login-server: anolisa-registry.cn-hangzhou.cr.aliyuncs.com
-          region-id: cn-hangzhou
-          access-key-id: ${{ secrets.ACR_ACCESS_KEY_ID }}
-          access-key-secret: ${{ secrets.ACR_ACCESS_KEY_SECRET }}
-          instance-id: ${{ secrets.ACR_INSTANCE_ID }}
+          login-server: https://anolisa-registry.cn-hangzhou.cr.aliyuncs.com
+          username: ${{ secrets.ACR_USERNAME }}
+          password: ${{ secrets.ACR_PASSWORD }}
 
       - name: Docker meta
         id: meta
