@@ -9,6 +9,7 @@ use crate::analyzer::{
 use crate::analyzer::message::types::OpenAIChatMessage;
 use crate::discovery::matcher::{ProcessContext, AgentMatcher};
 use crate::discovery::registry::known_agents;
+use crate::response_map::ResponseSessionMapper;
 use super::semantic::{
     GenAISemanticEvent, LLMCall, LLMRequest, LLMResponse,
     InputMessage, OutputMessage, MessagePart, TokenUsage,
@@ -17,6 +18,16 @@ use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 use sha2::{Sha256, Digest};
+
+/// Output from `GenAIBuilder::build()`, containing built events and deferred resolution info.
+pub struct BuildOutput {
+    /// Built GenAI semantic events (ready to export, may have fallback session_id)
+    pub events: Vec<GenAISemanticEvent>,
+    /// If set, the session_id was NOT resolved from the ResponseSessionMapper and
+    /// the caller should retry the lookup later using this response ID.
+    /// When the lookup succeeds, update the `session_id` metadata of all events.
+    pub pending_response_id: Option<String>,
+}
 
 /// Builder that constructs GenAI semantic events from AnalysisResult
 pub struct GenAIBuilder {
@@ -50,22 +61,43 @@ impl GenAIBuilder {
     ///
     /// This method reuses already-extracted data (Token, Message, HttpRecord)
     /// to construct higher-level GenAI semantic events without redundant parsing.
-    pub fn build(&self, results: &[AnalysisResult]) -> Vec<GenAISemanticEvent> {
+    ///
+    /// Returns a `BuildOutput` containing the events and an optional `pending_response_id`
+    /// when the session_id could not be resolved from the ResponseSessionMapper (the event
+    /// uses a hash-based fallback and the caller should retry later).
+    pub fn build(&self, results: &[AnalysisResult], response_mapper: &ResponseSessionMapper) -> BuildOutput {
         let mut events = Vec::new();
+        let mut pending_response_id = None;
 
         // Group related results by building LLMCall from multiple sources
         // TokenRecord + HttpRecord + ParsedApiMessage -> LLMCall
-        if let Some(llm_call) = self.build_llm_call(results) {
+        let parsed_message = results.iter().find_map(|r| match r {
+            AnalysisResult::Message(m) => Some(m.clone()),
+            _ => None,
+        });
+
+        // Check if the response ID exists but mapper didn't resolve it
+        let response_id = parsed_message.as_ref().and_then(|m| m.response_id()).map(|s| s.to_string());
+        let mapper_hit = response_id.as_deref()
+            .and_then(|rid| response_mapper.get_session_by_response_id(rid))
+            .is_some();
+
+        if let Some(llm_call) = self.build_llm_call(results, response_mapper) {
             events.push(GenAISemanticEvent::LLMCall(llm_call));
         }
 
-        events
+        // If response_id exists but mapper didn't have it, mark as pending
+        if !events.is_empty() && response_id.is_some() && !mapper_hit {
+            pending_response_id = response_id;
+        }
+
+        BuildOutput { events, pending_response_id }
     }
 
     /// Build LLMCall from analysis results
     ///
     /// Combines data from TokenRecord, HttpRecord, and ParsedApiMessage
-    fn build_llm_call(&self, results: &[AnalysisResult]) -> Option<LLMCall> {
+    fn build_llm_call(&self, results: &[AnalysisResult], response_mapper: &ResponseSessionMapper) -> Option<LLMCall> {
         // Extract components from analysis results
         let token_record = results.iter().find_map(|r| match r {
             AnalysisResult::Token(t) => Some(t.clone()),
@@ -85,8 +117,11 @@ impl GenAIBuilder {
         // Need at least HttpRecord to build LLMCall
         let http = http_record?;
         
-        // Check if this is an LLM API call
-        if !self.is_llm_api_path(&http.path) && !http.is_sse {
+        // Check if this is an LLM API call (path-based or body-based for SysOM POP API)
+        let path_match = self.is_llm_api_path(&http.path);
+        let body_match = !path_match && Self::is_sysom_pop_request(&http.request_body);
+        let is_llm = path_match || body_match;
+        if !is_llm && !http.is_sse {
             return None;
         }
 
@@ -107,21 +142,35 @@ impl GenAIBuilder {
         });
 
         // Determine provider and model
-        let provider = token_record.as_ref()
-            .map(|t| t.provider.clone())
-            .or_else(|| self.extract_provider_from_path(&http.path))
+        // Priority: path-based (most specific) > body-based > parsed_message > token_record
+        let provider = self.extract_provider_from_path(&http.path)
+            .or_else(|| Self::extract_provider_from_body(&http.request_body))
+            .or_else(|| parsed_message.as_ref().map(|m| m.provider().to_string()))
+            .or_else(|| token_record.as_ref().map(|t| t.provider.clone()))
             .unwrap_or_else(|| "unknown".to_string());
 
-        let model = token_record.as_ref()
-            .and_then(|t| t.model.as_ref().filter(|m| !m.is_empty()).cloned())
-            .or_else(|| self.extract_model_from_message(&parsed_message))
+        // Model priority: parsed_message (most accurate) > token_record > body extraction
+        let model = self.extract_model_from_message(&parsed_message)
+            .or_else(|| token_record.as_ref()
+                .and_then(|t| t.model.as_ref().filter(|m| !m.is_empty()).cloned()))
             .or_else(|| Self::extract_model_from_body(&http.request_body, &http.response_body))
             .unwrap_or_else(|| "unknown".to_string());
 
         // 在 request move 之前提取用户查询、fingerprint 和 session_id
         let query_fp = Self::compute_user_query_fingerprint(&request);
         let user_query = Self::extract_last_user_query(&request);
-        let session_id = Self::compute_session_id(&request);
+        // session_id: 优先从 agent 自身的 session 获取（通过 response ID → .jsonl UUID 映射），
+        // fallback 到基于首条 user message 的 hash 计算
+        let response_id_val = parsed_message.as_ref().and_then(|m| m.response_id()).map(|s| s.to_string());
+        let mapper_session = response_id_val.as_deref()
+            .and_then(|rid| response_mapper.get_session_by_response_id(rid))
+            .map(|s| s.to_string());
+        let session_id = mapper_session.clone()
+            .unwrap_or_else(|| Self::compute_session_id(&request));
+
+        // 提取 LLM API 的 response_id（如 chatcmpl-xxx），用作 trace_id
+        let response_id = Self::extract_response_id(&parsed_message, &http)
+            .unwrap_or_else(|| call_id.clone());
 
         Some(LLMCall {
             call_id,
@@ -136,7 +185,7 @@ impl GenAIBuilder {
             error: None,
             pid: http.pid as i32,
             process_name: http.comm.clone(),
-            agent_name: Self::resolve_agent_name(&http.comm),
+            agent_name: Self::resolve_agent_name(&http.comm, http.pid),
             metadata: {
                 let mut meta = HashMap::new();
                 meta.insert("method".to_string(), http.method);
@@ -160,9 +209,13 @@ impl GenAIBuilder {
                     meta.insert("operation_name".to_string(), "chat".to_string());
                 } else if http.path.contains("/completions") {
                     meta.insert("operation_name".to_string(), "text_completion".to_string());
+                } else if http.path.contains("/api/v1/copilot/generate_copilot") {
+                    meta.insert("operation_name".to_string(), "chat".to_string());
                 }
                 // conversation_id: 对话ID，同一 user query 触发的所有调用共享
                 meta.insert("conversation_id".to_string(), query_fp);
+                // response_id: LLM API 返回的响应 ID，用作 trace_id
+                meta.insert("response_id".to_string(), response_id);
                 // user_query: 用户实际输入的原文
                 if let Some(ref q) = user_query {
                     meta.insert("user_query".to_string(), q.clone());
@@ -219,6 +272,51 @@ impl GenAIBuilder {
                         seed: None,
                         stop_sequences: req.stop_sequences.clone(),
                         stream: req.stream.unwrap_or(false),
+                        tools: None,
+                        raw_body: http.request_body.clone(),
+                    };
+                }
+            }
+            Some(ParsedApiMessage::SysomMessage { request, .. }) => {
+                if let Some(req) = request.as_ref() {
+                    let msgs = req.params.messages.iter().map(|m| {
+                        let role = m.role.clone();
+                        let mut parts = Vec::new();
+                        if role == "tool" {
+                            let response_val = serde_json::from_str::<serde_json::Value>(&m.content)
+                                .unwrap_or_else(|_| serde_json::Value::String(m.content.clone()));
+                            parts.push(MessagePart::ToolCallResponse {
+                                id: m.tool_call_id.clone(),
+                                response: response_val,
+                            });
+                        } else {
+                            if !m.content.is_empty() {
+                                parts.push(MessagePart::Text { content: m.content.clone() });
+                            }
+                        }
+                        if let Some(ref tool_calls) = m.tool_calls {
+                            for tc in tool_calls {
+                                let arguments = serde_json::from_str::<serde_json::Value>(&tc.function.arguments).ok();
+                                parts.push(MessagePart::ToolCall {
+                                    id: Some(tc.id.clone()),
+                                    name: tc.function.name.clone(),
+                                    arguments,
+                                });
+                            }
+                        }
+                        InputMessage { role, parts, name: m.name.clone() }
+                    }).collect();
+                    return LLMRequest {
+                        messages: msgs,
+                        temperature: req.params.temperature,
+                        max_tokens: req.params.max_tokens,
+                        frequency_penalty: None,
+                        presence_penalty: None,
+                        top_p: req.params.top_p,
+                        top_k: None,
+                        seed: None,
+                        stop_sequences: None,
+                        stream: req.params.stream,
                         tools: None,
                         raw_body: http.request_body.clone(),
                     };
@@ -381,6 +479,47 @@ impl GenAIBuilder {
             _ => (vec![], None),
         };
 
+        // SysOM response handling
+        let (messages, finish_reason) = if messages.is_empty() {
+            match message {
+                Some(ParsedApiMessage::SysomMessage { response, .. }) => {
+                    response.as_ref().map(|resp| {
+                        let choice = resp.choices.first();
+                        let mut parts = Vec::new();
+                        if let Some(choice) = choice {
+                            if !choice.message.content.is_empty() {
+                                parts.push(MessagePart::Text { content: choice.message.content.clone() });
+                            }
+                            if let Some(ref tool_use) = choice.message.tool_use {
+                                for item in tool_use {
+                                    let arguments = serde_json::from_str::<serde_json::Value>(&item.function.arguments).ok();
+                                    parts.push(MessagePart::ToolCall {
+                                        id: Some(item.id.clone()),
+                                        name: item.function.name.clone(),
+                                        arguments,
+                                    });
+                                }
+                            }
+                        }
+                        let msgs = if parts.is_empty() {
+                            vec![]
+                        } else {
+                            vec![OutputMessage {
+                                role: "assistant".to_string(),
+                                parts,
+                                name: None,
+                                finish_reason: Some("stop".to_string()),
+                            }]
+                        };
+                        (msgs, Some("stop".to_string()))
+                    }).unwrap_or_else(|| (vec![], None))
+                }
+                _ => (messages, finish_reason),
+            }
+        } else {
+            (messages, finish_reason)
+        };
+
         // For SSE responses, extract from response_body when no parsed message
         let messages = if messages.is_empty() && http.is_sse {
             // No parsed response — reconstruct from SSE response body directly
@@ -445,7 +584,16 @@ impl GenAIBuilder {
         path.contains("/v1/completions") ||
         path.contains("/v1/messages") ||
         path.contains("/chat/completions") ||
-        path.contains("/completions")
+        path.contains("/completions") ||
+        path.contains("/api/v1/copilot/generate_copilot")
+    }
+
+    /// Check if request body contains SysOM POP API markers
+    /// SysOM uses path "/" with action in body (llmParamString field)
+    fn is_sysom_pop_request(request_body: &Option<String>) -> bool {
+        request_body.as_ref()
+            .map(|b| b.contains("llmParamString"))
+            .unwrap_or(false)
     }
 
     /// Extract provider from path
@@ -454,6 +602,17 @@ impl GenAIBuilder {
             Some("anthropic".to_string())
         } else if path.contains("/v1/chat/completions") || path.contains("/v1/completions") {
             Some("openai".to_string())
+        } else if path.contains("/api/v1/copilot/generate_copilot") {
+            Some("sysom".to_string())
+        } else {
+            None
+        }
+    }
+
+    /// Extract provider from request body (for POP API style requests)
+    fn extract_provider_from_body(request_body: &Option<String>) -> Option<String> {
+        if Self::is_sysom_pop_request(request_body) {
+            Some("sysom".to_string())
         } else {
             None
         }
@@ -468,6 +627,9 @@ impl GenAIBuilder {
             Some(ParsedApiMessage::AnthropicMessage { request, .. }) => {
                 request.as_ref().map(|r| r.model.clone())
             }
+            Some(ParsedApiMessage::SysomMessage { request, .. }) => {
+                request.as_ref().map(|r| r.params.model.clone())
+            }
             _ => None,
         }
     }
@@ -476,13 +638,25 @@ impl GenAIBuilder {
     ///
     /// 优先从 request body 取（用户请求的 model），
     /// 如果没有则从 response body 取（SSE 响应中的 model）
+    /// 对于 SysOM 请求，需要从 llmParamString 内嵌 JSON 中提取 model
     fn extract_model_from_body(request_body: &Option<String>, response_body: &Option<String>) -> Option<String> {
         // 尝试从 request body 获取
         if let Some(body) = request_body {
             if let Ok(v) = serde_json::from_str::<serde_json::Value>(body) {
+                // 标准 OpenAI/Anthropic 格式
                 if let Some(model) = v.get("model").and_then(|m| m.as_str()) {
                     if !model.is_empty() {
                         return Some(model.to_string());
+                    }
+                }
+                // SysOM 格式：model 嵌套在 llmParamString 中
+                if let Some(lps) = v.get("llmParamString").and_then(|v| v.as_str()) {
+                    if let Ok(inner) = serde_json::from_str::<serde_json::Value>(lps) {
+                        if let Some(model) = inner.get("model").and_then(|m| m.as_str()) {
+                            if !model.is_empty() {
+                                return Some(model.to_string());
+                            }
+                        }
                     }
                 }
             }
@@ -508,6 +682,53 @@ impl GenAIBuilder {
                 }
             }
         }
+        None
+    }
+
+    /// Extract the LLM API response ID from parsed message or SSE body.
+    ///
+    /// Priority:
+    /// 1. ParsedApiMessage response.id (OpenAI / Anthropic)
+    /// 2. SSE response body first chunk "id" field
+    /// 3. None (caller should fall back to call_id)
+    fn extract_response_id(parsed_message: &Option<ParsedApiMessage>, http: &HttpRecord) -> Option<String> {
+        // 1. Try parsed message response.id
+        if let Some(msg) = parsed_message {
+            match msg {
+                ParsedApiMessage::OpenAICompletion { response: Some(resp), .. } => {
+                    if !resp.id.is_empty() {
+                        return Some(resp.id.clone());
+                    }
+                }
+                ParsedApiMessage::AnthropicMessage { response: Some(resp), .. } => {
+                    if !resp.id.is_empty() {
+                        return Some(resp.id.clone());
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        // 2. SSE fallback: parse first JSON object from response_body for "id" field
+        if http.is_sse {
+            if let Some(ref body) = http.response_body {
+                // SSE body contains lines like "data: {...}" — find first JSON with "id"
+                for line in body.lines() {
+                    let json_str = line.strip_prefix("data: ").unwrap_or(line).trim();
+                    if json_str.is_empty() || json_str == "[DONE]" {
+                        continue;
+                    }
+                    if let Ok(v) = serde_json::from_str::<serde_json::Value>(json_str) {
+                        if let Some(id) = v.get("id").and_then(|v| v.as_str()) {
+                            if !id.is_empty() {
+                                return Some(id.to_string());
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         None
     }
 
@@ -613,11 +834,27 @@ impl GenAIBuilder {
     }
 
     /// 通过进程名匹配 agent registry，返回已知 agent 名称
-    fn resolve_agent_name(comm: &str) -> Option<String> {
+    fn resolve_agent_name(comm: &str, pid: u32) -> Option<String> {
+        // Read cmdline from /proc/{pid}/cmdline for accurate agent matching
+        let cmdline_args = std::fs::read(format!("/proc/{}/cmdline", pid))
+            .ok()
+            .map(|data| {
+                data.split(|&b| b == 0)
+                    .filter(|s| !s.is_empty())
+                    .map(|s| String::from_utf8_lossy(s).to_string())
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
+
+        let exe_path = std::fs::read_link(format!("/proc/{}/exe", pid))
+            .ok()
+            .map(|p| p.to_string_lossy().to_string())
+            .unwrap_or_default();
+
         let ctx = ProcessContext {
             comm: comm.to_string(),
-            cmdline_args: vec![],
-            exe_path: String::new(),
+            cmdline_args,
+            exe_path,
         };
         known_agents()
             .iter()
