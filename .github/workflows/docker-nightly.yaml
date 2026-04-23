@@ -56,13 +56,18 @@ jobs:
         id: detect-sec-core
         shell: bash
         run: |
-          BRANCH=$(git branch -r --list 'origin/release/sec-core/v*' | sort -V | tail -1 | tr -d ' ')
+          # Support both release/sec-core/v* and release/agent-sec-core/v*
+          BRANCH=$(
+            git branch -r --list 'origin/release/sec-core/v*' \
+                         --list 'origin/release/agent-sec-core/v*' \
+              | sort -V | tail -1 | tr -d ' '
+          )
           if [ -n "$BRANCH" ]; then
             REF="${BRANCH#origin/}"
             echo "ref=${REF}" >> $GITHUB_OUTPUT
             echo "Found sec-core release branch: ${REF}"
           else
-            echo "::warning::No release/sec-core/v* branch found, skipping sec-core"
+            echo "::warning::No release/(agent-)sec-core/v* branch found, skipping sec-core"
             echo "ref=" >> $GITHUB_OUTPUT
           fi
 
