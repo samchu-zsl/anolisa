@@ -181,6 +181,14 @@ jobs:
           artifact-suffix: ".nightly"
           retention-days: "7"
 
+      - name: Package vendor archive
+        uses: ./.github/actions/package-vendor
+        with:
+          component: ws-ckpt
+          version: ${{ needs.versions.outputs.ws-ckpt-version }}
+          artifact-suffix: ".nightly"
+          retention-days: "7"
+
   # TODO: uncomment when agentsight is integrated
   # package-sight:
   #   name: "Package: agentsight"
