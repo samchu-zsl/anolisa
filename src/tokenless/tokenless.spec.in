@@ -43,7 +43,7 @@ Note: OpenClaw plugin is available under /usr/share/tokenless/adapters/.
 Copilot-shell extension is auto-discovered from /usr/share/anolisa/extensions/tokenless/.
 
 %prep
-%setup -q -n tokenless
+%setup -q
 
 # Clean any stale build artifacts from the tarball
 cargo clean --release
