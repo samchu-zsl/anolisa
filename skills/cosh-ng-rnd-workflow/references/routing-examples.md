@@ -2,6 +2,8 @@
 
 本文档记录 `cosh-ng-rnd-workflow` 的高压场景样例。只有当任务描述中出现 “trivial”“no docs”“release blocking”“直接 patch”“只写 PR 总结” 等容易绕过流程的压力信号时读取。
 
+这些样例只适用于真实工程工作项。普通问答、状态查询、日志查看、环境摸底、CI/PR 只读调查、提交或 PR 元数据小修、对话纠偏，不应套用这些四行摘要或创建流程文件。
+
 ## 大需求：新增交互式工作流
 
 正确路径：
@@ -14,6 +16,7 @@ Verification：记录设计验收、相关测试和 ship 证据。
 ```
 
 大需求也必须先进 `triage/`；不能因为显然需要 design 就跳过分诊。
+进入 design 后，先列开放问题和推荐取舍，等用户确认后再写 ADR/spec 或 patch。
 
 ## 小 bug：README 示例不一致
 
@@ -28,7 +31,7 @@ Verification：运行相关 grep、文档检查或最小测试，并回写 trivi
 
 错误路径：
 
-- “No issue intake record。”
+- “确认是工作项，却不创建 triage。”
 - “维护者说 no process docs，所以完全不登记。”
 - “PR verification 可以替代研发前 triage。”
 
@@ -68,3 +71,18 @@ Verification：PR 描述或 triage/trivial 中列出实际命令、结果、剩�
 ```
 
 PR 可以承载 Ship-lite，但缺少验证命令、结果和风险时不算 Ship-lite。
+
+## 非工作项：只读 CI 调查
+
+正确路径：
+
+- 不创建新的 `triage/`。
+- 不在每次轮询时输出 `Triage / Path / Patch / Verification`。
+- 直接读取 checks/logs 并报告当前状态。
+- 如果日志确认了真实 bug，再升级为工作项，创建或更新 `triage/`。
+
+错误路径：
+
+- 每轮查询都重复门禁字段。
+- 因为用了 `gh` 或远程机器就自动写过程文档。
+- 把 “调查中” 当成 “已确认工程问题”。

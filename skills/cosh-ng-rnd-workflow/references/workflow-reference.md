@@ -1,10 +1,10 @@
 # 研发流程参考
 
-本文档是 `cosh-ng-rnd-workflow` 的扩展参考。日常执行以 `SKILL.md` 的 triage hard gate 为准。
+本文档是 `cosh-ng-rnd-workflow` 的扩展参考。日常执行以 `SKILL.md` 的工作项级 triage gate 为准。
 
 ## 文档职责
 
-- `triage/`：所有输入的分诊入口，记录类型、有效性、复杂度、推荐路径和后继文档。
+- `triage/`：真实 `cosh-ng` 产品、测试、架构或代码研发工作项的分诊入口，记录类型、有效性、复杂度、推荐路径和后继文档。
 - `trivial/`：从 triage 分流来的低复杂度 bug 或小修诊断。
 - `design/`：人类语义源头，讲背景、概念模型、边界和取舍。
 - `adr/`：决策锁，固化长期架构、安全、协议或模块归属选择。
@@ -12,6 +12,8 @@
 - `ship/`：人类交付证据，记录实际验证、风险、回滚和偏离情况。
 - `notes/`：不进入研发路径的背景材料、调研记录或讨论沉淀。
 - `progress/`：阶段性进展、baseline 和项目态势记录。
+
+文档库/skill 维护不是 `cosh-ng` 产品研发链路：不要为文档归位、skill 结构调整、workflow 元规则修正创建 `triage/`、`design/`、`specs/`、`adr/` 或 `ship/`。这类信息更新在 `README.md`、`notes/documentation-system.md`、`skills/<skill>/README.md`、`skills/<skill>/TESTING.md` 或必要的维护 notes 中。
 
 ## 路径约束
 
@@ -35,11 +37,13 @@
 
 最小顺序：
 
-1. 创建或更新 `triage/<short-slug>.md`。
-2. 记录类型、有效性、复杂度、推荐路径和后继文档。
-3. 再进入 trivial、patch、spec、design 或 ADR。
-4. 运行验证。
-5. 回写 triage、trivial 或 Ship-lite，写明验证结果和剩余风险。
+1. 先判断是否为真实工程工作项。
+2. 普通问答、状态查询、日志查看、环境摸底、CI/PR 只读调查、提交或 PR 元数据小修、对话纠偏、文档库整理、skill/workflow 维护不自动创建 `triage/`。
+3. 调查确认存在真实 `cosh-ng` 产品、测试、架构 bug、需求、review feedback 或实现 patch 时，创建或更新 `triage/<short-slug>.md`。
+4. 记录类型、有效性、复杂度、推荐路径和后继文档。
+5. 再进入 trivial、patch、spec、design 或 ADR。
+6. 运行验证。
+7. 回写 triage、trivial 或 Ship-lite，写明验证结果和剩余风险。
 
 ## 分流路径
 
@@ -64,6 +68,15 @@
 
 安全敏感问题不能因为 “release blocking” 或 “只改几行” 而绕过 triage。先写 `triage/`，再决定 specs 还是 design。
 
+## 协作门
+
+Design、ADR 和 Spec 不是 Agent 自动补齐的手续：
+
+- `design/` 先用于澄清背景、目标、非目标、系统边界和关键取舍。
+- 涉及长期边界、协议、安全策略或模块归属时，先列开放问题和推荐方案，等待用户确认后再固化 ADR。
+- `specs/` 只压缩已确认的 triage/design/ADR，不引入新的架构决策。
+- 发现 spec 需要拍板时，停止实现，回到 design 或 ADR。
+
 ## Ship-lite
 
 低复杂度和中等复杂度问题可以使用 Ship-lite。Ship-lite 可以写在 PR 描述、`ship/` 轻量文档、`triage/` 或 `trivial/` 文件里，但必须记录：
@@ -79,8 +92,11 @@
 
 开始前：
 
-- [ ] 已定位或创建 `triage/` 记录。
-- [ ] 已给出类型、有效性、复杂度和推荐路径。
+- [ ] 已判断当前请求是否为真实工程工作项。
+- [ ] 若不是工作项，没有伪造 triage，也没有重复门禁字段。
+- [ ] 若是文档库/skill 维护，记录没有进入产品研发目录链路。
+- [ ] 若是工作项，已定位或创建 `triage/` 记录。
+- [ ] 工作项已给出类型、有效性、复杂度和推荐路径。
 - [ ] 需要 design 的问题没有进入 `trivial/`。
 
 实现前：
@@ -88,7 +104,7 @@
 - [ ] 低复杂度 bug/小修已有 `trivial/` 诊断或 triage 中的等价诊断。
 - [ ] 中等复杂度问题已有 spec。
 - [ ] Spec 没有新增架构决策。
-- [ ] 设计路径已有 design；必要决策已进入 ADR。
+- [ ] 设计路径已有 design；必要决策经用户确认后进入 ADR。
 
 完成前：
 

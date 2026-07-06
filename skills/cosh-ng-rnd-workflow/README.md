@@ -10,7 +10,7 @@ Codex 链接：`~/.codex/skills/cosh-ng-rnd-workflow`
 
 ## 目录结构
 
-- `SKILL.md`：运行时必须加载的 triage hard gate 和最小路由规则。
+- `SKILL.md`：运行时必须加载的 `cosh-ng` 产品/测试/架构工作项级 triage gate 和最小路由规则。
 - `references/workflow-reference.md`：完整研发路径、文档职责、升级信号和检查表。
 - `references/routing-examples.md`：大需求、小 bug、中等复杂度需求和 Ship-lite 高压场景样例。
 - `references/rationalizations.md`：常见绕过借口和红旗。
@@ -30,7 +30,8 @@ Codex 链接：`~/.codex/skills/cosh-ng-rnd-workflow`
 
 ## 候选约束范围
 
-- 所有输入先进入 `triage/` 分诊。
+- 只有真实 `cosh-ng` 产品、测试、架构或代码研发输入进入 `triage/` 分诊。
+- 文档库/skill 维护不进入 `triage/design/specs/adr/ship` 产品研发链路，直接更新规范文件或 skill 测试记录。
 - 低复杂度 bug/小修进入 `trivial/` 诊断。
 - 边界清楚的问题进入 `specs/`。
 - 高复杂度或高不确定性问题进入 `design/`，必要时补 `adr/`。
