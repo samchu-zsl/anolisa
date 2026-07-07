@@ -50,6 +50,33 @@ Verification：记录 <命令/人工检查>，并回写 triage、trivial 或 Shi
 
 对非工作项，不要伪造 triage。直接给答案；若只读调查发现真实问题，再升级为工作项并创建 triage。
 
+
+## 提交和 PR 约束
+
+提交整理、分支命名、PR title/body 小修属于元规则或元数据维护，不自动创建 `triage/`。如果同一轮同时包含真实代码、测试、架构或产品语义变更，仍按工作项门禁先定位或创建 `triage/`。
+
+提交前先保护工作区并同步基线：确认当前分支和未提交改动，必要时 stash，`fetch` 后 rebase 到最新 `main`，恢复改动并解决冲突。不要覆盖用户未提交改动，不使用破坏性 reset。
+
+`cosh-ng` 提交 subject 使用：
+
+```text
+type(cosh-ng): [<crate_scope>] imperative subject
+```
+
+`type` 只使用 Conventional Commit 类型：`feat`、`fix`、`docs`、`style`、`refactor`、`perf`、`test`、`build`、`ci`、`chore`。`<crate_scope>` 写实际影响 crate，例如 `[core]`、`[shell]`、`[core,shell]`、`[cli]`、`[platform]`、`[types]`。subject 使用英文祈使句，不加句号。PR title 与提交 subject 保持一致。
+
+分支名使用：
+
+```text
+<type>/cosh-ng/<desc>
+```
+
+`<type>` 优先使用 `feature`、`fix`、`hotfix`、`release`、`chore`、`docs`、`test`、`refactor`。`<desc>` 只使用小写英文、数字、`.`、`_`、`-`，并以小写英文或数字开头。示例：`fix/cosh-ng/auth-paste-markers`、`feature/cosh-ng/auth-ownership`。
+
+PR body 使用仓库 `.github/pull_request_template.md` 的结构；必须真实列出 issue 链接或 `no-issue` 原因、变更类型、scope、实际验证命令和剩余风险。fork PR 前确认 fork branch 指向当前提交；如推送被 workflow scope 或 fork main 落后阻塞，先同步 fork 或让用户刷新 GitHub 权限。
+
+如果仓库 `.github/commitlint.config.json`、PR prelint 或 AGENTS 规则与本节冲突，以当前仓库 CI 硬门禁为准，并向用户说明需要同步哪一处规则。
+
 ## 分流路径
 
 | 路径 | 判断 |

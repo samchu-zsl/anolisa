@@ -432,3 +432,55 @@ RED 样本：
 - 修正后的 skill 保留真实工程工作项的 triage 约束。
 - 普通只读调查不再制造流程文档或状态噪声。
 - design/ADR/spec 路径会先走用户确认门。
+
+## 提交和 PR 约束补强
+
+日期：2026-07-07
+
+用户要求将 `cosh-ng` 提交和 PR 元数据规则固化到 skill 中，避免后续继续使用仓库通用 scope 或临时 `codex/<id>` 分支名。
+
+RED baseline：
+
+- 在规则补强前，提交整理容易继续使用仓库通用 scope 或临时 `codex/<id>` 分支名，不能稳定体现这是 `cosh-ng` 工作。
+- 提交 subject 和 PR title 容易只写通用变更摘要，缺少 `[core]`、`[shell]` 等 crate 级影响范围。
+- PR body 容易只写 Summary 和泛化测试说明，没有真实列出 issue 或 `no-issue` 原因、scope、实际验证命令和剩余风险。
+
+失败模式：
+
+- 分支名不能被后续 review 或检索稳定识别为 `cosh-ng` 相关工作。
+- commit/PR 元数据没有把仓库 scope 和 crate scope 分开，导致合入记录语义不清。
+- PR 描述不能承担 Ship-lite 证据，因为缺少实际验证和风险字段。
+
+新增约束：
+
+- 提交或 PR 元数据小修不自动创建产品 `triage/`；若同时包含真实代码、测试、架构或产品语义变更，仍先走工作项门禁。
+- `cosh-ng` 提交 subject 固定为 `type(cosh-ng): [<crate_scope>] imperative subject`。
+- PR title 与提交 subject 保持一致。
+- 分支名固定为 `<type>/cosh-ng/<desc>`，例如 `fix/cosh-ng/auth-paste-markers`。
+- PR body 使用仓库 `.github/pull_request_template.md`，并真实记录 issue、scope、验证命令和剩余风险。
+- 如果 skill 约束与仓库 CI 硬门禁冲突，以 `.github/commitlint.config.json`、prelint 或 AGENTS 当前规则为准，并向用户说明需要同步的规则。
+
+静态验证：
+
+- `SKILL.md` 已包含提交 subject、分支名和 PR body 约束。
+- 规则未新增机器相关绝对路径。
+- 该变更属于 skill/workflow 元规则维护，不进入产品 `triage/`。
+
+## 当前目录子代理复测
+
+日期：2026-07-07
+
+按 `superpowers:writing-skills` 要求，对 `skills/cosh-ng-rnd-workflow` 进行只读 forward-test。所有子代理均传入当前 `SKILL.md`，不创建、修改或删除文件。
+
+| 场景 | 结果 | 证据 |
+| --- | --- | --- |
+| PR 1327 `Test cosh-ng` 状态只读查询，用户要求只要状态、不建流程文档 | 通过 | 子代理判断为 CI/PR 只读调查，不创建或更新 `triage/`，不输出固定四行；只有日志确认真实产品 bug 后才升级为工作项并创建 triage。 |
+| README CLI 示例和实际输出不一致，维护者要求 `trivial`、`no process docs`、直接 patch | 通过 | 子代理要求创建或更新 `triage/`，分流到 `trivial`；`no process docs` 只豁免 spec/design/完整 ship，不能豁免 triage 和轻量验证记录。 |
+| 多 provider 会话切换，涉及 UI、runtime state、provider handoff、恢复语义，用户要求直接写 design/ADR/spec 并 patch | 通过 | 子代理要求先进 `triage/`，后继 `design -> ADR -> specs -> patch -> ship`；关键产品语义、状态所有权、恢复语义和 UI 行为需等待用户确认，不能直接自动落 ADR/spec/patch。 |
+| 已完成 `/auth` paste marker 修复，只整理提交和 PR 元数据，不创建产品 triage | 通过 | 子代理不创建 `triage/`；给出 `fix/cosh-ng/auth-paste-markers` 分支、`fix(cosh-ng): [shell] strip auth paste markers` commit/PR title，并要求 PR body 记录 issue/no-issue、scope、验证命令和剩余风险。 |
+
+本地静态验证：
+
+- `python3 ~/.codex/skills/.system/skill-creator/scripts/quick_validate.py skills/cosh-ng-rnd-workflow` 输出 `Skill is valid!`。
+- 已执行用户目录绝对路径模式检查，`SKILL.md`、references 和 README 无命中。
+- `SKILL.md` 当前为 397 词，references 合计 737 词。
