@@ -5,7 +5,7 @@
 负责人：
 来源 Triage：../triage/2026-07-06-cosh-auth-ownership.md
 来源 Trivial：无
-相关 ADR：../adr/ADR-002-cosh-core-owns-auth.md
+相关 ADR：../adr/ADR-002-cosh-core-owns-auth.md；../adr/ADR-003-cosh-config-layering-and-auth-scope.md
 后继 Spec：../specs/2026-07-06-cosh-core-auth-ownership.md
 
 > 本文档必须使用中文书写；技术名词、命令、路径、协议字段和代码标识符可以保留英文原文。
@@ -22,6 +22,7 @@
 - 明确 `cosh-shell` 只作为鉴权前端，负责展示、输入捕获和协议转发。
 - 用户自然语言 prompt 触发 Agent 后，`cosh-shell` 不预检查鉴权状态，仍将 prompt 发送给 `cosh-core`。
 - `cosh-core` 检测不到 `~/.copilot-shell/config.toml` 时，才执行一次性迁移；只要 `config.toml` 存在，就不再迁移 `settings.json` 或 legacy Aliyun credentials。
+- `cosh-core` 加载配置时需要分层合成用户配置和项目配置；项目配置不能遮蔽用户配置中的 auth provider。
 - `/auth` 仍作为用户主动管理鉴权配置的入口，支持新增 provider、选择 active provider、编辑已保存 provider。
 - `/auth` 中切换 active provider 后立即生效；用户能进入 `/auth` 时当前 run 已结束，不需要额外处理运行中竞争。
 - `cosh-shell` 可以接收 secret 字段用于编辑回填或提交，但所有前端展示必须脱敏。
@@ -32,6 +33,7 @@
 - 不让 `cosh-shell` 直接判断 provider 凭证是否有效。
 - 不在 `cosh-shell` 中保留 ECS RAM Role 检测或 STS 获取逻辑。
 - 不重新设计 provider 配置文件格式之外的全量配置系统。
+- 不允许项目配置保存或覆盖 auth provider、secret、`auth_source` 或 `active_provider`。
 - 不把 #1248 的 prompt-boundary/card-input 修复回退或混入本设计。
 - 不保证非 `cosh-core` adapter 的完整鉴权管理能力；其他 auth 面板可以按现状降级并提醒用户。
 
@@ -42,6 +44,8 @@
 - Provider template：由 `cosh-core` 提供的 provider schema，包含 provider id、label、字段、默认 model 和 provider type。
 - Saved provider：`cosh-core` 从 `config.toml` 读取的已保存 provider 配置。secret 字段可以传给 shell，但 shell 展示时必须脱敏。
 - Active provider：`cosh-core` 当前配置选中的 provider。
+- User config：用户级 `~/.copilot-shell/config.toml`，保存 auth provider、secret、`auth_source` 和 `/auth` 管理状态。
+- Project config：项目级 `<cwd>/.copilot-shell/config.toml`，只保存非敏感运行偏好，不保存或覆盖鉴权配置。
 - Auth source：provider 凭证来源，例如静态 AK/SK、ECS RAM Role 获取的 STS credentials，或后续 provider 自己的 OAuth/device flow。
 - Auth session：一次由 `auth_required` 或 `/auth` 触发的管理会话，shell 只保存 UI 状态，core 保存真实业务状态。
 
@@ -98,6 +102,12 @@ shell 在两条路径里都只是前端，不拥有 ECS 检测、轮询、STS �
 
 `/auth` 是用户主动管理入口，能输入 `/auth` 说明当前 Agent run 已结束。切换 active provider 后，core 应立即持久化并 rebuild provider，使后续 prompt 使用新 provider。无需为“切换时仍有当前 run 正在执行”设计复杂并发语义。
 
+### 取舍七：auth 配置只属于用户配置
+
+项目配置和用户配置内容不同。用户配置保存 provider、secret、AK/SK、token、`auth_source` 和 `/auth` 管理状态；项目配置只覆盖非敏感运行偏好。`active_provider` 暂不允许出现在项目配置中，因为它会选择具体用户 provider。`[ai.providers.<id>]` 作为原子配置，不允许在系统、用户、项目多层之间做字段级 merge。
+
+因此 review 中的配置 split-brain 问题不应通过“把 `/auth` 写回项目配置”解决，而应通过 `cosh-core` 分层加载配置解决：项目配置存在时仍需加载用户配置中的 auth provider，但项目配置不得覆盖 provider 或 secret。
+
 ## 建议流程
 
 ### Prompt 触发 Agent
@@ -105,9 +115,9 @@ shell 在两条路径里都只是前端，不拥有 ECS 检测、轮询、STS �
 ```text
 用户 prompt
   -> cosh-shell 转发给 cosh-core
-  -> cosh-core load config
+  -> cosh-core 分层加载用户配置和项目配置
   -> 若 config.toml 不存在：执行一次性 settings.json / legacy credentials 迁移
-  -> 若 config.toml 存在：不执行旧配置迁移
+  -> 若用户 config.toml 存在：不执行旧配置迁移
   -> cosh-core 判断 provider 凭证是否可用
   -> 可用：执行 prompt
   -> 不可用：emit auth_required
@@ -162,6 +172,9 @@ shell 在两条路径里都只是前端，不拥有 ECS 检测、轮询、STS �
 - 已决：shell 可以接收 secret，但前端展示、日志和错误提示必须脱敏。
 - 已决：`/auth` 切换 active provider 立即生效，不处理当前 run 竞争。
 - 已决：本设计只保证 `cosh-core`；其他 adapter 的 auth 面板按现状降级提醒用户。
+- 已决：auth provider、secret、`auth_source` 和 `/auth` 管理状态只属于用户配置。
+- 已决：项目配置暂不允许 `active_provider`，也不允许定义或覆盖 `[ai.providers.<id>]`。
+- 已决：`[ai.providers.<id>]` 是原子配置，不做 layered merge。
 - 待 spec 明确：ECS RAM Role 的配置表达方式，是新增 auth source / role name 字段，还是沿用 AK/SK/token 字段。
 - 待 spec 明确：STS credentials 刷新策略。当前方向是 core 负责刷新，不把 shell 引入刷新路径；是否持久化短期 token 需要在实现 spec 中约束。
 - 待 spec 明确：control protocol 字段命名、错误码、重试语义和脱敏规则。
@@ -169,4 +182,6 @@ shell 在两条路径里都只是前端，不拥有 ECS 检测、轮询、STS �
 ## 后续文档
 
 - ADR：../adr/ADR-002-cosh-core-owns-auth.md
+- ADR：../adr/ADR-003-cosh-config-layering-and-auth-scope.md
 - Spec：../specs/2026-07-06-cosh-core-auth-ownership.md
+- Spec：../specs/2026-07-07-cosh-config-layering-auth-scope.md

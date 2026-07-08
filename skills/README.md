@@ -15,6 +15,7 @@ skills/
 ## 当前候选
 
 - `cosh-ng-rnd-workflow/`：约束 Agent 使用 `cosh-ng` 研发文档流程。
+- `cosh-ng-e2e-validation/`：约束 Agent 规划并执行 `cosh-ng` 用户视角 e2e 验证。
 
 ## 规则
 

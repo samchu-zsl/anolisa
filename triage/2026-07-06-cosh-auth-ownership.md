@@ -9,7 +9,7 @@
 有效性：有效
 复杂度：high
 推荐路径：design
-后继文档：../design/2026-07-06-cosh-auth-ownership.md；../adr/ADR-002-cosh-core-owns-auth.md；../specs/2026-07-06-cosh-core-auth-ownership.md
+后继文档：../design/2026-07-06-cosh-auth-ownership.md；../adr/ADR-002-cosh-core-owns-auth.md；../adr/ADR-003-cosh-config-layering-and-auth-scope.md；../specs/2026-07-06-cosh-core-auth-ownership.md；../specs/2026-07-07-cosh-config-layering-auth-scope.md
 
 > 本文档必须使用中文书写；技术名词、命令、路径、协议字段和代码标识符可以保留英文原文。
 
@@ -25,6 +25,8 @@ GitHub issue #1248 表现为触发 Agent 授权后一直停留在 `Thinking`，i
 - 当前 `cosh-shell` 仍保留自己的 auth provider 模板、ECS 检测、STS polling、已有 provider 读取和 `persist_auth_credentials()`，形成第二套鉴权实现。
 - `cosh-shell` 的 cosh-core adapter 当前没有把 auth response 写回 cosh-core 等待中的 stdin 通道，导致 `Auth configured` 可能只是 shell 本地落盘提示，而不是当前 run 已恢复。
 - `/auth` 仍需要作为管理入口，支持新增 auth provider、选择 active provider、修改已保存 provider 配置。
+- 2026-07-07 ECS e2e 发现：旧 `cosh 2.6.1` 在 Alibaba Cloud Linux 4 Agentic Edition 上通过 `Aliyun Authentication` 生成 `settings.json` 与 `aliyun_creds.json`；新 `cosh-core` 迁移后生成了 `[ai.providers.aliyun] auth_source = "ecs_ram_role"`，但 `[ai] active_provider` 仍为 `default`，且 `default` 被写成 `dashscope`，导致迁移后首次直接对话仍弹出 `Authentication Required`。
+- 2026-07-07 PR review 发现：`CoreConfig::load` 当前按项目配置、用户配置、系统配置 first-hit return；`/auth` 持久化写用户配置。项目配置存在时会遮蔽用户配置中的 auth provider。经讨论确认，auth 信息只属于 `~/.copilot-shell/config.toml`，项目配置不能保存或覆盖 `active_provider`、`[ai.providers.<id>]` 或 secret。
 
 ## 影响范围
 
@@ -53,12 +55,16 @@ GitHub issue #1248 表现为触发 Agent 授权后一直停留在 `Thinking`，i
 - `cosh-core` 负责 `settings.json` / legacy credentials 一次性迁移、ECS RAM Role 检测、凭证持久化和 provider rebuild；只要 `config.toml` 已存在，就不再执行旧配置迁移。
 - `/auth` 必须支持新增 provider、选择 active provider、编辑已保存 provider。
 - `Auth configured` 后当前等待的 cosh-core run 必须能够继续，不能只写本地配置。
+- `cosh-core` 必须分层加载用户配置和项目配置；项目配置不能遮蔽用户配置中的 auth provider。
+- 项目配置暂不允许 `active_provider`，`[ai.providers.<id>]` 作为原子配置不允许 layered merge。
 - 需要保留 #1248 的 prompt-boundary/card-input 修复，不把 #1353 简化成同一个 UI busy 问题。
 
 ## 验证建议
 
 - 协议层测试：`auth_required -> auth response -> cosh-core 同一 run 继续`。
 - 配置迁移测试：无 `config.toml` 但有 `settings.json` 时由 `cosh-core` 迁移。
+- 配置迁移测试：旧 `settings.json` 中 `selectedType = "aliyun"` 时，生成的 active provider 必须指向 Aliyun provider，且可直接复用旧 Aliyun 授权方式。
 - 配置迁移测试：有 `config.toml` 时不再读取 `settings.json` 或 legacy Aliyun credentials。
 - `/auth` 管理测试：新增、切换、编辑 provider 都只通过 `cosh-core` 持久化。
 - Aliyun 鉴权测试：ECS 环境由 `cosh-core` 发起二维码和链接展示并获取 STS，非 ECS 环境要求用户输入 AK/SK。
+- 配置分层测试：项目配置存在时仍加载用户配置中的 provider secret；项目配置中的 `active_provider`、`[ai.providers]` 和 secret 不生效。

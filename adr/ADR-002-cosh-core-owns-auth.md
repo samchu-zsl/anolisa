@@ -31,6 +31,7 @@
 - `cosh-shell` 可以接收 secret 字段，但 UI、日志和错误提示必须脱敏展示。
 - Aliyun 鉴权分支由 `cosh-core` 判断：ECS 环境展示二维码和链接并由 core 获取 STS credentials；非 ECS 环境要求用户输入 AK/SK。
 - 本决策只保证 `cosh-core` 路径；其他 adapter 的 auth 面板可以按现状降级提醒用户。
+- 配置分层、项目配置边界和 auth/provider 配置归属由 ADR-003 约束；本 ADR 不要求 `/auth` 写回项目配置。
 
 ## 备选方案
 
@@ -79,3 +80,4 @@
 - 为“无 `config.toml` 时迁移，有 `config.toml` 时不迁移”补充配置测试。
 - 在 spec 中明确 Aliyun ECS auth challenge、AK/SK fallback、STS credentials 刷新或重新获取策略。
 - 在 spec 中明确 secret 字段的协议传输、UI 展示、日志脱敏和错误提示规则。
+- 由 ADR-003 约束项目配置与用户配置的分层加载，避免项目配置遮蔽用户 auth provider。

@@ -5,7 +5,7 @@
 来源 Triage：../triage/2026-07-06-cosh-auth-ownership.md
 来源 Trivial：无
 来源 Design：../design/2026-07-06-cosh-auth-ownership.md
-约束 ADR：../adr/ADR-002-cosh-core-owns-auth.md
+约束 ADR：../adr/ADR-002-cosh-core-owns-auth.md；../adr/ADR-003-cosh-config-layering-and-auth-scope.md
 负责人：
 
 > 本文档必须使用中文书写；技术名词、命令、路径、协议字段和代码标识符可以保留英文原文。
@@ -23,6 +23,7 @@
 
 - 不支持删除 provider。
 - 不支持重命名 provider。
+- 不实现项目级 provider selection。
 - 不为非 `cosh-core` adapter 实现完整 auth 管理；其他 adapter 的 auth 面板按现状降级提醒用户。
 - 不引入系统 keychain、KMS 或新的密钥后端。
 - 不做 AK/SK 的保存前网络校验；首期只做字段完整性校验，真实请求失败后走运行中 re-auth。
@@ -58,6 +59,7 @@
 - 禁止在 `config.toml` 已存在时读取 `settings.json` 或 legacy Aliyun credentials 作为 fallback。
 - 禁止在 UI、日志、错误提示、测试快照中输出 secret 明文。
 - 禁止因为 `/auth` 管理需要而破坏 prompt 触发 Agent 时的行为；prompt 必须直接发给 `cosh-core`，由 core 判断是否需要鉴权。
+- 禁止让项目配置保存或覆盖 `active_provider`、`[ai.providers.<id>]`、secret 或 `auth_source`。
 
 ## 实施要求
 
@@ -67,6 +69,7 @@
 - `CoreConfig.ai.active_provider` 保存当前 provider 的 `provider_id`。
 - `ProviderConfig.type` 或 Rust 字段 `provider_type` 保存授权类型，取值包括但不限于 `aliyun`、`openai`、`dashscope`。
 - 多个 provider 可以拥有相同 `provider_type`，但 `provider_id` 必须唯一。
+- `[ai.providers.<provider_id>]` 是用户配置中的原子 auth/provider 配置，不允许和项目配置做字段级 layered merge。
 - `ProviderConfig` 增加可选字段 `auth_source`。Aliyun ECS RAM Role provider 使用：
 
 ```toml
