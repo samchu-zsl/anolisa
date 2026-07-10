@@ -6,7 +6,7 @@
 关联 issue：https://github.com/alibaba/anolisa/issues/1361
 负责人：samchu-zsl
 诊断结论：可直接修复
-后继文档：Ship-lite 待修复完成后回写本文档或 PR
+后继文档：Ship-lite 已回写本文档
 
 ## 问题
 
@@ -93,6 +93,95 @@ dry-run 的职责只是验证输入并描述预演动作，不应依赖服务是
 
 ## 后续事项
 
-- 修复完成后记录实际命令、结果、剩余风险和回滚方案。
+- 实际命令、结果、剩余风险和回滚方案已记录在下方 Ship-lite。
 - 若实现发现必须改变公共数据结构或真实动作语义，回到 triage 升级到
   `specs/` 或 `design/`。
+
+## Ship-lite
+
+### 变更摘要
+
+- 代码提交 `4a8e512d4ac806631bd68e3627ea4be0445c534b`
+  （`fix(cosh-ng): [platform,cli] honor svc dry-run`）在 action 校验后直接返回
+  dry-run 预演结果，不再查询 `systemctl`。
+- 平台和 CLI 回归测试覆盖 `start`、`stop`、`restart`、`enable`、`disable`；
+  两个状态字段均使用 `Unknown("(dry-run)")`，明确表示没有查询真实状态。
+- 非 dry-run 控制流、公共类型、依赖和 lockfile 均未修改。
+
+### 验收证据
+
+以下命令于 2026-07-10 在 macOS 工作树的目标提交上重新执行：
+
+- `cargo fmt --all -- --check`：退出 0。
+- `cargo test --package cosh-platform svc::tests::test_svc_action_dry_run_skips_status_query_for_all_actions -- --exact`：
+  1 passed，0 failed，175 filtered out。
+- `cargo test --package cosh-cli --test cli_integration test_svc_actions_dry_run_nonexistent_service_succeed -- --exact`：
+  1 passed，0 failed，53 filtered out。
+- `cargo run --quiet --package cosh-cli -- svc start cosh-nonexistent-test-svc-1361 --dry-run`：
+  退出 0，返回 `ok=true`、`meta.dry_run=true`，`previous_state` 和
+  `new_state` 均为 `Unknown("(dry-run)")`。
+- `cargo run --quiet --package cosh-cli -- pkg install cosh-nonexistent-test-pkg-1361 --dry-run`：
+  退出 0，返回 `ok=true`、`meta.dry_run=true`。
+
+任务 1 的 RED/GREEN 记录证明两个回归测试在生产代码修改前均按预期失败，
+最小修改后均通过；最终 fresh GREEN 结果如上。任务 1 还记录了以下门禁：
+
+- `cargo test --package cosh-platform -- --skip test_parse_installed_version_bash`：
+  175 passed，0 failed，1 filtered out，doc tests 通过。
+- `cargo test --package cosh-cli --test cli_integration -- --skip test_pkg_search_bash_shows_installed`：
+  53 passed，0 failed，1 filtered out。
+- `cargo clippy --workspace --all-targets -- -D warnings`：退出 0，无 warning。
+- `cargo build --workspace --release`：退出 0，release 构建完成。
+
+### Workspace 门禁现状
+
+- 未排除测试的 platform 和 CLI suite 各有一个既有 macOS 环境相关失败：
+  `pkg::tests::test_parse_installed_version_bash` 与
+  `test_pkg_search_bash_shows_installed`。当前主机由 Nix 提供 `bash`，但 macOS
+  包管理检测选择 Homebrew；这两个测试及 package 代码未被本修复修改。
+- `cargo test --workspace -- --skip test_pkg_search_bash_shows_installed`：退出
+  101；#1361 测试均通过，workspace 在上述 platform package baseline 处失败。
+- `cargo test --workspace -- --skip test_pkg_search_bash_shows_installed --skip test_parse_installed_version_bash`：
+  退出 101；#1361、platform 和 CLI 测试均通过，`cosh-shell --test raw_cli`
+  为 300 passed、3 failed、1 ignored。失败项及 isolated exact 重跑结果为：
+    - `cosh_core::evidence::raw_cli_cosh_core_failed_command_diagnostic_reads_output_before_answering`：
+      `1 passed; 0 failed`。
+    - `cosh_core::evidence::raw_cli_cosh_core_status_analysis_reads_result_bearing_output`：
+      `1 passed; 0 failed`。
+    - `evidence_request::raw_cli_terminal_output_read_misroute_records_details_audit`：
+      `1 passed; 0 failed`。
+- `cargo test --workspace -- --test-threads=1 --skip test_pkg_search_bash_shows_installed --skip test_parse_installed_version_bash`：
+  退出 101；前述 3 个 PTY 测试通过，`cosh-shell --test raw_cli` 出现另外 4 个
+  时序失败，为 299 passed、4 failed、1 ignored。失败项及 isolated exact 重跑
+  结果为：
+    - `evidence_request::raw_cli_cosh_request_card_ctrl_c_cancels_only_evidence_request`：
+      `1 passed; 0 failed`。
+    - `evidence_request::raw_cli_cosh_request_output_card_sends_bounded_excerpt`：
+      `1 passed; 0 failed`。
+    - `question::raw_cli_agent_question_ctrl_c_cancels_card_without_answer_turn`：
+      `1 passed; 0 failed`。
+    - `question::raw_cli_zsh_question_card_capture_does_not_leak_to_shell`：
+      `1 passed; 0 failed`。
+- 上述每个 isolated rerun 均使用
+  `cargo test --package cosh-shell --test raw_cli <name> -- --exact`；7 个失败项的
+  每次结果均为 `1 passed; 0 failed`。
+- 因此不能声称本机 `cargo test --workspace` 已达到 0 failed。Linux GitHub CI
+  仍是合入前完成未排除 workspace 测试的最终门禁。
+
+### 剩余风险
+
+- 本地验证运行于 macOS，没有执行真实 Linux/systemd 服务动作；dry-run 测试
+  使用不存在服务，验证预演不依赖 `systemctl` 且不修改主机状态。
+- 两个状态字段是“未查询”的明确占位值，调用方不得将其解释为真实服务状态。
+- 本机 package baseline 失败和 `cosh-shell` PTY 时序波动仍存在，均不在本修复
+  的 platform/CLI 控制流范围内。
+
+### 回滚方案
+
+- 回滚代码提交即可恢复原控制流；该操作会重新引入 Issue #1361，使 svc
+  dry-run 再次依赖服务状态查询。
+
+### 不需要完整 ship 文档的原因
+
+- 这是单函数控制流的小修，不改变公共类型、协议、架构或真实执行语义；本文
+  已记录实际验证、已知基线、剩余风险和回滚方式，满足 Ship-lite 要求。
