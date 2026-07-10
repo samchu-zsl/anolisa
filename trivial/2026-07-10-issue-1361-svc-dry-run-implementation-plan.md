@@ -20,7 +20,7 @@
 
 ---
 
-### 任务 1：以 TDD 修复 svc dry-run 控制流
+### Task 1：以 TDD 修复 svc dry-run 控制流
 
 **文件：**
 
@@ -179,7 +179,7 @@ git commit \
 
 ---
 
-### 任务 2：执行完整验证并回写 Ship-lite
+### Task 2：执行完整验证并回写 Ship-lite
 
 **文件：**
 
@@ -262,7 +262,7 @@ git commit -m 'docs: record issue 1361 verification'
 
 ---
 
-### 任务 3：通过 fork 创建 draft PR
+### Task 3：通过 fork 创建 draft PR
 
 **文件：**
 
