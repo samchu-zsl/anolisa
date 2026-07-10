@@ -101,7 +101,7 @@ dry-run 的职责只是验证输入并描述预演动作，不应依赖服务是
 
 ### 变更摘要
 
-- 代码提交 `4a8e512d4ac806631bd68e3627ea4be0445c534b`
+- 最终交付代码提交 `651217ecad4529064c3431d19bb94244bde37b35`
   （`fix(cosh-ng): [platform,cli] honor svc dry-run`）在 action 校验后直接返回
   dry-run 预演结果，不再查询 `systemctl`。
 - 平台和 CLI 回归测试覆盖 `start`、`stop`、`restart`、`enable`、`disable`；
@@ -123,8 +123,11 @@ dry-run 的职责只是验证输入并描述预演动作，不应依赖服务是
 - `cargo run --quiet --package cosh-cli -- pkg install cosh-nonexistent-test-pkg-1361 --dry-run`：
   退出 0，返回 `ok=true`、`meta.dry_run=true`。
 
-任务 1 的 RED/GREEN 记录证明两个回归测试在生产代码修改前均按预期失败，
-最小修改后均通过；最终 fresh GREEN 结果如上。任务 1 还记录了以下门禁：
+任务 1 的 RED/GREEN 记录最初随 pre-rebase 提交
+`4a8e512d4ac806631bd68e3627ea4be0445c534b` 捕获，证明两个回归测试在生产
+代码修改前均按预期失败，最小修改后均通过。最终交付以
+`651217ecad4529064c3431d19bb94244bde37b35` 为准；其 fresh GREEN 结果如上。
+任务 1 还记录了以下门禁：
 
 - `cargo test --package cosh-platform -- --skip test_parse_installed_version_bash`：
   175 passed，0 failed，1 filtered out，doc tests 通过。
