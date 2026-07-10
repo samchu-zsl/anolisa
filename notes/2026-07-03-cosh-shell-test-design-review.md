@@ -1,5 +1,8 @@
 # cosh-shell 测试与架构设计 review
 
+日期：2026-07-03
+状态：已完成
+
 ## 请求
 
 暂时不处理 `cosh-cli` 的 Manjaro package-manager 失败，聚焦 `cosh-shell` 的测试失败，整体检查架构设计和测试设计是否存在不合理之处。

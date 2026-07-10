@@ -27,6 +27,10 @@ GitHub issue #1248 表现为触发 Agent 授权后一直停留在 `Thinking`，i
 - `/auth` 仍需要作为管理入口，支持新增 auth provider、选择 active provider、修改已保存 provider 配置。
 - 2026-07-07 ECS e2e 发现：旧 `cosh 2.6.1` 在 Alibaba Cloud Linux 4 Agentic Edition 上通过 `Aliyun Authentication` 生成 `settings.json` 与 `aliyun_creds.json`；新 `cosh-core` 迁移后生成了 `[ai.providers.aliyun] auth_source = "ecs_ram_role"`，但 `[ai] active_provider` 仍为 `default`，且 `default` 被写成 `dashscope`，导致迁移后首次直接对话仍弹出 `Authentication Required`。
 - 2026-07-07 PR review 发现：`CoreConfig::load` 当前按项目配置、用户配置、系统配置 first-hit return；`/auth` 持久化写用户配置。项目配置存在时会遮蔽用户配置中的 auth provider。经讨论确认，auth 信息只属于 `~/.copilot-shell/config.toml`，项目配置不能保存或覆盖 `active_provider`、`[ai.providers.<id>]` 或 secret。
+- 2026-07-09 PR review 发现：`/auth` 新增 Aliyun provider 时，如果在收集 `provider_id` 前进入 ECS RAM Role shortcut，可能回退使用模板 id `aliyun` 并覆盖已有 `[ai.providers.aliyun]`。
+- 2026-07-09 PR review 发现：编辑已有手动 Aliyun provider 时，不能仅因为当前运行在 ECS 环境就自动转换为 `auth_source = "ecs_ram_role"`，否则会删除手动 AK/SK/token。
+- 2026-07-09 PR review 发现：编辑已有 `auth_source = "ecs_ram_role"` 的 Aliyun provider 时，如果 ECS prepare fallback 到手动 AK/SK/token 表单，必须清除旧 `auth_source`；否则 `cosh-core` 会把 `auth_source = "ecs_ram_role"` 作为权威状态并丢弃用户手动输入的 AK/SK/token。
+- 2026-07-09 PR review 发现：系统层 provider 不应被 `/auth` 复制或覆盖到用户配置；`provider_id` 也需要在 core registry 层做合法性校验。
 
 ## 影响范围
 
@@ -66,5 +70,7 @@ GitHub issue #1248 表现为触发 Agent 授权后一直停留在 `Thinking`，i
 - 配置迁移测试：旧 `settings.json` 中 `selectedType = "aliyun"` 时，生成的 active provider 必须指向 Aliyun provider，且可直接复用旧 Aliyun 授权方式。
 - 配置迁移测试：有 `config.toml` 时不再读取 `settings.json` 或 legacy Aliyun credentials。
 - `/auth` 管理测试：新增、切换、编辑 provider 都只通过 `cosh-core` 持久化。
+- `/auth` Aliyun 新增测试：先收集唯一 `provider_id`，再进入 ECS RAM Role challenge；不得使用 provider template id 作为保存 id。
+- `/auth` Aliyun 编辑测试：手动 provider 不因 ECS 环境自动转换为 `ecs_ram_role`；ECS provider fallback 到手动编辑时清除旧 `auth_source` 并保留手动 AK/SK/token。
 - Aliyun 鉴权测试：ECS 环境由 `cosh-core` 发起二维码和链接展示并获取 STS，非 ECS 环境要求用户输入 AK/SK。
 - 配置分层测试：项目配置存在时仍加载用户配置中的 provider secret；项目配置中的 `active_provider`、`[ai.providers]` 和 secret 不生效。

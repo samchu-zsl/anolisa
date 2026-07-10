@@ -80,6 +80,8 @@ model = "qwen3.7-plus"
 ```
 
 - `auth_source = "ecs_ram_role"` 的 provider 不应持久化 `access_key_id`、`access_key_secret` 或 `security_token`。
+- `provider_id` 必须由 core registry 校验，只允许作为配置索引安全使用的字符集合；非法 id 不得写入用户配置。
+- `/auth` 不得覆盖非用户层 provider。系统层 provider 可以展示为不可编辑或返回不可编辑错误，但不能被复制成用户 provider。
 
 ### 2. 一次性迁移
 
@@ -106,8 +108,12 @@ model = "qwen3.7-plus"
   - active provider：当前 `active_provider` 的 `provider_id`。
 - `cosh-shell` 平铺展示 saved providers，通过 `provider_id` 区分每个 provider。
 - 新增 provider 时，用户必须提供唯一 `provider_id`；core 负责冲突检测。
+- 新增 Aliyun provider 时，`provider_id` 必须先完成收集，再进入 ECS RAM Role challenge；shell 不得在缺少 `provider_id` 时用 provider template id 作为保存 id。
 - 切换 active provider 时，core 立即更新 `active_provider`、持久化并 rebuild provider。
 - 编辑 provider 时，core 按 `provider_id` 修改该 provider，不能用 `provider_type` 定位。
+- 编辑手动 Aliyun provider 时，不得因为当前环境是 ECS 就隐式转换为 `auth_source = "ecs_ram_role"`。
+- 编辑已有 `auth_source = "ecs_ram_role"` 的 Aliyun provider 时，如果 ECS prepare 返回 manual fallback，必须在进入手动 AK/SK/token 字段前清除旧 `auth_source`。
+- `auth_source = "ecs_ram_role"` 在 core 中是权威状态；只要该字段存在，core 会认为 provider 使用 ECS RAM Role，并不会持久化 AK/SK/token。
 - `/auth` 不提供删除和重命名入口。
 
 ### 5. Secret 编辑和展示
@@ -153,8 +159,12 @@ model = "qwen3.7-plus"
 - 旧 Aliyun STS provider 被 core 兼容转换为 `auth_source = "ecs_ram_role"`，并移除持久化的 AK/SK/token。
 - `auth_required` 触发后，shell auth response 能写回当前 `cosh-core` stdin，core 完成 persist/rebuild 后同一 run 继续。
 - `/auth` 展示 saved providers 时按 `provider_id` 平铺，多个相同 `provider_type` 的 provider 可同时存在。
+- `/auth` 新增 Aliyun provider 时，保存 id 必须来自用户输入的 `provider_id`，不能回退到模板 id。
 - `/auth` 切换 active provider 后立即写入 `active_provider = "<provider_id>"`，后续 prompt 使用新 provider。
 - `/auth` 编辑 provider 时，直接 Enter 保留已有 secret，清空后 Enter 保存为空值，展示始终使用等长 `•`。
+- `/auth` 编辑手动 Aliyun provider 时，不能自动写入 `auth_source = "ecs_ram_role"`，也不能删除已有 AK/SK/token。
+- `/auth` 编辑 ECS RAM Role Aliyun provider 且 fallback 到手动表单时，保存结果必须移除旧 `auth_source` 并保留用户输入的 AK/SK/token。
+- core registry 必须拒绝非法 `provider_id`，并拒绝覆盖非用户层 provider。
 - ECS 环境 Aliyun auth 由 core 发起二维码/链接 challenge 并保存 `auth_source = "ecs_ram_role"`。
 - 非 ECS 环境 Aliyun auth 要求 AK/SK，缺少必填字段时不保存。
 - `cosh-shell` 中不再存在真实 ECS 检测、STS polling 或 provider credential 持久化路径。

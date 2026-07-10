@@ -7,9 +7,24 @@
 
 - [输入分诊](triage/README.md)
 - [小问题诊断](trivial/README.md)
-- [项目架构总览](design/architecture-overview.md)
+- [架构与设计](design/README.md)
+- [架构决策](adr/README.md)
+- [执行规格](specs/README.md)
+- [交付验收](ship/README.md)
+- [调研笔记](notes/README.md)
+- [阶段进展](progress/README.md)
 - [研发文档组织约定](notes/documentation-system.md)
 - [当前项目状态笔记](progress/2026-07-03-project-architecture-baseline.md)
+
+## 主题索引
+
+| 主题 | 分诊 | 设计/决策 | 执行/验收 |
+| --- | --- | --- | --- |
+| prompt boundary 与交互卡片卡死 | [分诊](triage/2026-07-03-cosh-shell-prompt-boundary.md)、[小问题诊断](trivial/2026-07-03-cosh-shell-prompt-boundary.md) | [设计](design/2026-07-03-cosh-shell-prompt-boundary.md) | [验收](ship/2026-07-03-cosh-shell-prompt-boundary.md) |
+| raw_cli 测试技术债治理 | [分诊](triage/2026-07-03-cosh-shell-test-debt-remediation.md) | [设计](design/2026-07-03-cosh-shell-test-debt-remediation.md)、[ADR-001](adr/ADR-001-cosh-shell-raw-cli-test-contract.md) | [执行规格](specs/2026-07-03-cosh-shell-raw-cli-test-debt.md)、[验收](ship/2026-07-04-cosh-shell-test-debt-remediation.md) |
+| 鉴权职责、配置分层与 `/auth` 管理 | [分诊](triage/2026-07-06-cosh-auth-ownership.md) | [设计](design/2026-07-06-cosh-auth-ownership.md)、[ADR-002](adr/ADR-002-cosh-core-owns-auth.md)、[ADR-003](adr/ADR-003-cosh-config-layering-and-auth-scope.md) | [鉴权规格](specs/2026-07-06-cosh-core-auth-ownership.md)、[配置规格](specs/2026-07-07-cosh-config-layering-auth-scope.md)、[验收](ship/2026-07-09-cosh-auth-pr-1377-review-fixes.md) |
+| PR 审查记录 | [PR 1347](triage/2026-07-06-pr-1347-review-findings.md)、[PR 1365](triage/2026-07-07-pr-1365-auth-provider-changelog.md) | 无 | 无 |
+| 项目架构基线 | 无 | [架构总览](design/2026-07-03-architecture-overview.md) | [基线盘点](progress/2026-07-03-project-architecture-baseline.md) |
 
 ## 基本约束
 

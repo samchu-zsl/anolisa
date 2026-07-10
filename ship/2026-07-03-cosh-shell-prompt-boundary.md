@@ -1,6 +1,7 @@
 # cosh-shell prompt 边界与交互卡片卡死
 
 日期：2026-07-03
+状态：已验收
 版本/分支：未提交工作区
 来源 Triage：../triage/2026-07-03-cosh-shell-prompt-boundary.md
 来源 Trivial：../trivial/2026-07-03-cosh-shell-prompt-boundary.md

@@ -1,5 +1,8 @@
 # pve-manjaro 工作区编译验证
 
+日期：2026-07-03
+状态：已完成
+
 ## 请求
 
 在 `pve-manjaro` 主机上创建隔离工作区，并在那里编译当前 `cosh-ng` checkout。

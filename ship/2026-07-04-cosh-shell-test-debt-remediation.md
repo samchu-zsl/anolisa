@@ -1,6 +1,7 @@
 # cosh-shell 测试债治理验收
 
 日期：2026-07-04
+状态：已验收
 版本/分支：当前工作树
 来源 Triage：../triage/2026-07-03-cosh-shell-test-debt-remediation.md
 来源 Trivial：无
