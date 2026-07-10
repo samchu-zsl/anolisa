@@ -101,16 +101,53 @@ dry-run 的职责只是验证输入并描述预演动作，不应依赖服务是
 
 ### 变更摘要
 
-- 最终交付代码提交 `651217ecad4529064c3431d19bb94244bde37b35`
+- Issue #1361 最终代码提交 `5b1538cf7b84e3330913dc542c974330fec744c4`
   （`fix(cosh-ng): [platform,cli] honor svc dry-run`）在 action 校验后直接返回
   dry-run 预演结果，不再查询 `systemctl`。
+- PR #1426 的第二个最终提交和当前 head 均为
+  `f49cfc5e4569449e125cbab90beb19b13c243c1a`
+  （`fix(cosh-ng): [core] drop redundant format borrow`）；该提交只处理 Rust
+  1.97 Clippy 的冗余 format borrow，不改变 #1361 行为。
+- 两个提交均基于 `fd3b68c3bb8336c89b38c81c80bddc3cbfc97019`；PR 当前已
+  ready-for-review，仍为 `OPEN` 且 `REVIEW_REQUIRED`，未合并、未批准。
 - 平台和 CLI 回归测试覆盖 `start`、`stop`、`restart`、`enable`、`disable`；
   两个状态字段均使用 `Unknown("(dry-run)")`，明确表示没有查询真实状态。
 - 非 dry-run 控制流、公共类型、依赖和 lockfile 均未修改。
 
-### 验收证据
+### Rebase 等价性
 
-以下命令于 2026-07-10 在 macOS 工作树的目标提交上重新执行：
+最终 rebase 后执行：
+
+```bash
+git range-diff \
+  bf9eb65fdcd407bf17a943e7394ca399a4f49abf~2..bf9eb65fdcd407bf17a943e7394ca399a4f49abf \
+  fd3b68c3bb8336c89b38c81c80bddc3cbfc97019..f49cfc5e4569449e125cbab90beb19b13c243c1a
+```
+
+结果中两个序号均为 `=`：第一个 patch 映射到 `5b1538cf`，第二个 patch
+映射到 `f49cfc5e`。这证明 rebase 只更新了提交身份和基线，两个提交的 patch
+内容与 rebase 前等价。
+
+### 最终 fresh 本地验收
+
+以下命令于 2026-07-10 在最终 rebase 后的 PR head `f49cfc5e` 上重新执行：
+
+- `cargo fmt --all -- --check`：通过。
+- `cargo test --package cosh-core`：unit 与 integration targets 合计
+  275 passed，0 failed。
+- `cargo clippy --workspace --all-targets -- -D warnings`：在本地
+  Rust/Clippy 1.91 上通过。
+- `cargo test --package cosh-platform svc::tests::test_svc_action_dry_run_skips_status_query_for_all_actions -- --exact`：
+  1 passed，0 failed。
+- `cargo test --package cosh-cli --test cli_integration test_svc_actions_dry_run_nonexistent_service_succeed -- --exact`：
+  1 passed，0 failed。
+- `cargo build --workspace --release`：通过。
+- 对两个最终提交执行 CI 等价的 commitlint：0 problems，0 warnings。
+
+### 早期本地验收与 RED/GREEN 历史
+
+以下命令曾于 2026-07-10 在 macOS 工作树的 #1361 目标 patch 上执行，作为
+rebase 前的历史证据保留：
 
 - `cargo fmt --all -- --check`：退出 0。
 - `cargo test --package cosh-platform svc::tests::test_svc_action_dry_run_skips_status_query_for_all_actions -- --exact`：
@@ -125,8 +162,9 @@ dry-run 的职责只是验证输入并描述预演动作，不应依赖服务是
 
 任务 1 的 RED/GREEN 记录最初随 pre-rebase 提交
 `4a8e512d4ac806631bd68e3627ea4be0445c534b` 捕获，证明两个回归测试在生产
-代码修改前均按预期失败，最小修改后均通过。最终交付以
-`651217ecad4529064c3431d19bb94244bde37b35` 为准；其 fresh GREEN 结果如上。
+代码修改前均按预期失败，最小修改后均通过。该 SHA 只用于历史 TDD
+溯源；最终 #1361 交付 SHA 是 `5b1538cf7b84e3330913dc542c974330fec744c4`，
+最终 PR head 是 `f49cfc5e4569449e125cbab90beb19b13c243c1a`。
 任务 1 还记录了以下门禁：
 
 - `cargo test --package cosh-platform -- --skip test_parse_installed_version_bash`：
@@ -136,7 +174,11 @@ dry-run 的职责只是验证输入并描述预演动作，不应依赖服务是
 - `cargo clippy --workspace --all-targets -- -D warnings`：退出 0，无 warning。
 - `cargo build --workspace --release`：退出 0，release 构建完成。
 
-### Workspace 门禁现状
+### Workspace 门禁：历史本机基线与最终 Linux CI
+
+以下本机 macOS 结果是 rebase 前保留的历史基线，用于解释为何当时不能声称
+本地 `cargo test --workspace` 为 0 failed；它们不再是未关闭的发布门禁，因为
+最终 Linux CI 已完成未排除的 workspace 测试并通过：
 
 - 未排除测试的 platform 和 CLI suite 各有一个既有 macOS 环境相关失败：
   `pkg::tests::test_parse_installed_version_bash` 与
@@ -168,21 +210,35 @@ dry-run 的职责只是验证输入并描述预演动作，不应依赖服务是
 - 上述每个 isolated rerun 均使用
   `cargo test --package cosh-shell --test raw_cli <name> -- --exact`；7 个失败项的
   每次结果均为 `1 passed; 0 failed`。
-- 因此不能声称本机 `cargo test --workspace` 已达到 0 failed。Linux GitHub CI
-  仍是合入前完成未排除 workspace 测试的最终门禁。
+- 因此仍不能把历史本机结果改写为 `cargo test --workspace` 达到 0 failed；
+  最终完整 workspace 结论来自下面的 Linux GitHub CI。
+
+最终 GitHub Actions [CI run 29072923127](https://github.com/alibaba/anolisa/actions/runs/29072923127)
+结论为 success。其中 [Test cosh-ng job](https://github.com/alibaba/anolisa/actions/runs/29072923127/job/86298171049)
+耗时 8m51s 并成功完成格式检查、Rust 1.97 stable all-targets Clippy 和
+`cargo test --workspace`。PR lint、PR checks、CLA 与 change detection 均为
+GREEN；其他组件 jobs 因 change detection 正确跳过，不是失败。唯一 annotation
+是 `actions/checkout@v4` 的非阻塞 Node.js 20 弃用提醒，属于仓库 workflow
+技术债，并非本 patch 引入。
+
+PR #1426 于 `2026-07-10T06:15:07Z` 转为 ready-for-review；当前仍需 reviewer
+评审，不代表已经批准或合并。
 
 ### 剩余风险
 
 - 本地验证运行于 macOS，没有执行真实 Linux/systemd 服务动作；dry-run 测试
-  使用不存在服务，验证预演不依赖 `systemctl` 且不修改主机状态。
+  使用不存在服务，验证预演不依赖 `systemctl` 且不修改主机状态。Linux CI
+  已关闭 Rust 1.97 与完整 workspace 门禁，但没有执行真实服务变更。
 - 两个状态字段是“未查询”的明确占位值，调用方不得将其解释为真实服务状态。
-- 本机 package baseline 失败和 `cosh-shell` PTY 时序波动仍存在，均不在本修复
-  的 platform/CLI 控制流范围内。
+- 本机 package baseline 失败和 `cosh-shell` PTY 时序波动是保留的历史环境
+  证据，均不在本修复的 platform/CLI 控制流范围内，也没有阻断最终 Linux CI。
+- PR 当前为 ready-for-review 且 `REVIEW_REQUIRED`；尚未获得批准或合并。
 
 ### 回滚方案
 
-- 回滚代码提交即可恢复原控制流；该操作会重新引入 Issue #1361，使 svc
-  dry-run 再次依赖服务状态查询。
+- 回滚 `5b1538cf` 会恢复原控制流，并重新引入 Issue #1361，使 svc dry-run
+  再次依赖服务状态查询。若只需回滚 Rust 1.97 lint 清理，可单独回滚
+  `f49cfc5e`，但这会重新打开 Rust 1.97 all-targets Clippy 门禁。
 
 ### 不需要完整 ship 文档的原因
 
