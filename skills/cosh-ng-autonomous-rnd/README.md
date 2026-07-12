@@ -11,6 +11,8 @@
 - [TESTING.md](TESTING.md)：无 skill 与有 skill 的真实子 Agent 压力证据。
 - [阶段契约](references/stage-contracts.md)：`StageTask` 与 `StageResult` 的闭合字段和验证顺序。
 - [安全策略](references/security-policy.md)：不可信输入、写入权限、禁止动作和语言边界。
+- [精确压力场景](references/pressure-scenarios.md)：逐字 prompt template、RED/GREEN 注入协议与评分条件。
+- [契约测试](tests/test_contract.py)：docs checkout 内可独立执行的 skill、证据与相对链接检查。
 
 ## 维护规则
 
