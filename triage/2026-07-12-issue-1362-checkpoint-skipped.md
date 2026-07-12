@@ -1,7 +1,7 @@
 # Issue #1362 checkpoint skipped 被映射为失败分诊
 
 日期：2026-07-12
-状态：已分流
+状态：已关闭
 来源：GitHub issue
 关联 issue：[alibaba/anolisa#1362](https://github.com/alibaba/anolisa/issues/1362)
 负责人：samchu-zsl
@@ -59,3 +59,11 @@ snapshot 是预期的幂等成功结果，不应被 Agent 解释为可重试的�
   `data.skipped=true`、`data.reason` 和 exit code 0。
 - 验证正常 `CheckpointOk` 仍输出真实 `snapshot_id`。
 - 运行受影响 crate 测试、workspace tests、all-targets clippy 和 release build。
+
+## 分诊收口
+
+- 修复提交：`cc177f157219c90fbaea9d37ddb2f73f15e778fb`。
+- Fork PR：[alibaba/anolisa#1440](https://github.com/alibaba/anolisa/pull/1440)。
+- PR 已 rebase 到包含 Rust 1.97 Clippy 基线修复的 `origin/main`，最终 Linux
+  `Test cosh-ng`、commit lint、PR checks、CLA 与 change detection 均通过。
+- 详细验证、风险与回滚记录见后继 Trivial 的 Ship-lite。
