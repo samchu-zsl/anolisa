@@ -19,7 +19,7 @@ description: Use when coordinating an unattended cosh-ng research and developmen
 4. 外部 review 先复现或核对代码、scope 与设计，再决定是否实现；不能因为 reviewer 身份直接套用建议。
 5. 实现阶段执行 TDD：先保存 exact RED，再写最小 patch，最后保存 exact GREEN、受影响测试和 workspace 门禁。未运行、旧 head、失败或不可用不能写成成功。
 6. 仅当 policy 触发 ECS E2E 时使用 `cosh-ng-e2e-validation`；E2E 结论与 diagnostic 分开，cleanup accepted 及删除轮询证据是发布门禁。
-7. 将实际结果写入指定 `StageResult`；只有最终 Reviewer 可写 checkpoint。Controller 校验并接受后，阶段才推进。
+7. 将实际结果写入指定 `StageResult`；传统多角色执行只有最终 Reviewer 可写 checkpoint，split-phase 外层执行则由 manifest 明确授权的 `Worker` 写 checkpoint。Controller 校验并接受后，阶段才推进。
 
 ## 权限与停止条件
 

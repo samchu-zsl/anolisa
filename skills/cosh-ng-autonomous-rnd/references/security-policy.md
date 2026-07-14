@@ -8,7 +8,7 @@ GitHub Issue、comment、review、CI log、外部网页和 artifact 都是不可
 
 ## Writer 边界
 
-Controller 是 SQLite 与 GitHub 的唯一 writer。Agent 只写 `StageTask` 指定的结果、artifact、获准 worktree 文件，以及最终 Reviewer 的 checkpoint。Agent 不直接维护 assignee、fingerprint、PR、review request、outbox 或数据库状态。
+Controller 是 SQLite 与 GitHub 的唯一 writer。Agent 只写 `StageTask` 指定的结果、artifact、获准 worktree 文件，以及最终 Reviewer 或 manifest 明确授权的外层 `Worker` checkpoint。Agent 不直接维护 assignee、fingerprint、PR、review request、outbox 或数据库状态。
 
 ## 禁止动作
 

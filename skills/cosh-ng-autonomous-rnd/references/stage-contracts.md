@@ -15,7 +15,7 @@
 | 角色与预算 | `role`、`budget_minutes` |
 | 已有证据 | `artifact_ids`、`verification_refs` |
 
-接收后先运行逻辑等价于 `validate_stage_task` 的闭合校验。只有 mutable stage 的 Developer 可得到 `task_worktree` 和 `edit_allowed_files`；其他角色是 `read_only`。所有角色只能写指定 `output_path`，最终 Reviewer 才能写 checkpoint。
+接收后先运行逻辑等价于 `validate_stage_task` 的闭合校验。传统多角色执行只有 mutable stage 的 Developer 可得到 `task_worktree` 和 `edit_allowed_files`；split-phase 外层 `Worker` 在 mutable stage 可得到同一受控范围，其他角色是 `read_only`。所有角色只能写指定 `output_path`；传统多角色执行由最终 Reviewer 写 checkpoint，split-phase 外层执行由 manifest 明确授权的 `Worker` 写 checkpoint。
 
 ## StageResult 必填字段
 
@@ -26,7 +26,7 @@
 | 结果 | `status`、`failure_class`、`error_message`、`summary` |
 | 证据与恢复 | `artifacts`、`checkpoint_path`、`completed_at` |
 
-Controller 使用 `validate_stage_result` 校验结果文件、闭合 schema、manifest provenance、artifact 相对路径、SHA-256、size 和角色权限。`SUCCEEDED` 仍不等于阶段已推进；只有 Controller 在当前租约下接受最终 Reviewer checkpoint 后才推进。
+Controller 使用 `validate_stage_result` 校验结果文件、闭合 schema、manifest provenance、artifact 相对路径、SHA-256、size 和角色权限。`SUCCEEDED` 仍不等于阶段已推进；只有 Controller 在当前租约下接受最终 Reviewer 或 manifest 授权的外层 `Worker` checkpoint 后才推进。
 
 ## NEEDS_HUMAN 的类型与持久化
 
