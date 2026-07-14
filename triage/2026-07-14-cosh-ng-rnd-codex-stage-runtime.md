@@ -28,6 +28,9 @@ artifact、StageResult 或外部写入。
 - `CodexStageExecutor` 使用裸命令名 `codex`，但子进程 `PATH` 被固定为
   `/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin`，不包含实际 CLI 目录。
 - 同一隔离环境还创建空 `CODEX_HOME`；实际探针返回 `Not logged in`。
+- Codex access token 仅适用于 ChatGPT Business/Enterprise 工作区，当前宿主
+  不能创建；官方非交互模式允许在单次 `codex exec` 上使用
+  `CODEX_API_KEY`，费用按 Platform API 用量结算。
 - StageTask 要求 `cosh-ng-autonomous-rnd`、`cosh-ng-rnd-workflow` 和阶段 skill，
   但隔离 `HOME` 当前没有 provision 这些 skill。
 - `cargo`、`rustc`、`git` 位于 `/etc/profiles/per-user/samchu/bin`，
@@ -55,8 +58,9 @@ CLI 能力明确，但需要闭合 executable、认证、skill、工具和无人
 
 - 在 task lease 和 stage run 创建前解析并验证绝对 Codex executable。
 - 对每次 Stage 显式使用 `--ask-for-approval never`，保留按角色选择 sandbox。
-- 使用专用 automation 身份或 broker；禁止复制 Controller/个人凭据到 task、
-  artifact 或 Stage 可写目录。
+- 使用 macOS Keychain broker 读取专用 Platform API key，只在单次
+  `codex exec` 父进程环境注入 `CODEX_API_KEY`；禁止复制 Controller/个人
+  ChatGPT 凭据到 task、artifact 或 Stage 可写目录。
 - 在隔离 `HOME` 中只 provision StageTask 声明的受信 skill。
 - 从宿主解析受控工具绝对路径，构造最小 PATH；不得继承完整用户环境。
 - 缺少任一条件时 fail closed，并报告具体运行时能力，不消费 Stage attempt。

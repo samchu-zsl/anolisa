@@ -70,14 +70,21 @@
 
 ### 认证与配置
 
-- Stage 使用专用 automation Codex 身份或等价 broker。认证信息必须位于系统
-  凭据库或 Stage 不可读取的 broker 中，不能位于普通 credential 文件。
+- Stage 使用专用 Platform API key。Key 由 macOS Keychain broker 读取，只以
+  `CODEX_API_KEY` 注入单次 `codex exec` 父进程；不得设置为 automation
+  进程、调度器或 job 级环境变量。
+- Codex 的 `shell_environment_policy.include_only` 必须明确排除
+  `CODEX_API_KEY`，保证模型启动的 shell、测试、构建脚本和依赖 hook 无法继承。
+- broker 的错误、Codex stdout/stderr、SQLite 和 artifact 都不得包含 key；
+  Keychain 条目缺失、为空或格式非法时，在派发前 fail closed。
 - 专用 `CODEX_HOME` 只允许保存 Controller 生成并校验的非秘密配置、cache 和
   ephemeral state；其中存在 `auth.json` 时 fail closed。
-- 宿主一次性准备必须能用 `codex login status` 或等价 redacted probe 证明
-  authentication 可用，且 probe 不输出 token。
+- 宿主一次性准备必须通过不输出 key 的真实 `codex exec` 结构化 smoke 证明
+  authentication 可用；不得用个人 `~/.codex/auth.json` 作为回退。
 - 自动化运行时显式 `approval_policy=never`；管理策略拒绝该值时视为阻塞，
   不能等待无人值守任务中的人工 approval。
+- Platform API key 使用独立 API 计费和额度，不消耗 ChatGPT 套餐额度；没有
+  已批准的 key 或预算时保持 Worker PAUSED。
 
 ### Skill provision
 
@@ -112,8 +119,8 @@
   bypass 参数。
 - 环境测试证明 hostile secret、完整 PATH、global Git config、SSH agent 和代理
   均未继承。
-- 空认证、credential file、缺少 skill、缺少工具的 preflight 测试均 fail closed，
-  且不创建 lease/stage run/attempt。
+- 空 API key、Keychain broker 失败、credential file、缺少 skill、缺少工具的
+  preflight 测试均 fail closed，且不创建 lease/stage run/attempt。
 - 真实 CLI `--version`、redacted login status 和结构化 read-only smoke 通过。
 - Pilot task 1 的 `CLAIM` StageResult 通过 schema、provenance 和 exact-head 校验。
 - Worker 恢复后没有重复 fingerprint 评论、assignee、task、branch 或 worktree。
@@ -130,7 +137,7 @@
 
 ## 开放问题
 
-- 当前宿主尚未 provision 专用 automation Codex 身份或 broker；代码修复后仍需
-  一次性登录/凭据库准备。
-- `superpowers` 当前可发现但未安装；Pilot 恢复前需要明确安装并锁定其版本，或
-  将所需阶段 skill 以受控方式纳入自有 skill 包。
+- 当前宿主尚未在 Keychain provision 专用 Platform API key；代码和 broker
+  完成后仍需一次性人工录入并批准 API 用量。
+- `superpowers` 已安装并锁定版本 `2f1a8948`；运行时仍需在每次 Stage 前验证
+  所有声明 skill 的受信来源和 `SKILL.md`。
