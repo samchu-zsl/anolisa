@@ -1,12 +1,12 @@
 # cosh-ng 自主研发 Pilot #1363 准备与授权设计
 
 日期：2026-07-14
-状态：待书面复核
+状态：已批准
 负责人：samchu-zsl
 来源 Triage：[Pilot #1363 切换分诊](../triage/2026-07-14-cosh-ng-rnd-pilot-1363.md)
 来源 Trivial：无
 相关 ADR：无
-后继 Spec：待书面设计批准后创建
+后继 Spec：[Pilot #1363 rollout 执行规格](../specs/2026-07-14-cosh-ng-rnd-pilot-1363.md)
 
 ## 背景
 
@@ -219,4 +219,4 @@ Design 和后继 Spec 固化即可。
 ## 后续文档
 
 - ADR：无
-- Spec：书面设计批准后新增 Pilot #1363 rollout 执行规格
+- Spec：[Pilot #1363 rollout 执行规格](../specs/2026-07-14-cosh-ng-rnd-pilot-1363.md)
