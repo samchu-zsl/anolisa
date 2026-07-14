@@ -7,9 +7,9 @@
 负责人：samchu-zsl
 类型：bug
 有效性：有效
-复杂度：medium
-推荐路径：specs
-后继文档：[Codex Stage 运行时执行规格](../specs/2026-07-14-cosh-ng-rnd-codex-stage-runtime.md)
+复杂度：high
+推荐路径：design
+后继文档：[外层 Worker 执行设计](../design/2026-07-14-cosh-ng-rnd-outer-worker-execution.md)、[Codex Stage 运行时执行规格](../specs/2026-07-14-cosh-ng-rnd-codex-stage-runtime.md)
 
 ## 输入摘要
 
@@ -29,8 +29,9 @@ artifact、StageResult 或外部写入。
   `/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin`，不包含实际 CLI 目录。
 - 同一隔离环境还创建空 `CODEX_HOME`；实际探针返回 `Not logged in`。
 - Codex access token 仅适用于 ChatGPT Business/Enterprise 工作区，当前宿主
-  不能创建；官方非交互模式允许在单次 `codex exec` 上使用
-  `CODEX_API_KEY`，费用按 Platform API 用量结算。
+  不能创建；Platform API key 虽可用于内层 `codex exec`，但会引入独立费用和凭据面。
+- 原始架构中的 Worker 本身就是已登录的 Codex Automation，能够直接使用本地项目、
+  skills 和 tools；第二层 `codex exec` 不是业务要求。
 - StageTask 要求 `cosh-ng-autonomous-rnd`、`cosh-ng-rnd-workflow` 和阶段 skill，
   但隔离 `HOME` 当前没有 provision 这些 skill。
 - `cargo`、`rustc`、`git` 位于 `/etc/profiles/per-user/samchu/bin`，
@@ -48,19 +49,19 @@ artifact、StageResult 或外部写入。
 
 ## 分诊判断
 
-这是可稳定复现的有效运行时 bug。直接把 ChatGPT.app 路径追加到 `PATH` 只能
-解除第一个错误，随后仍会遇到认证、skill 和工具链缺失；而复制现有
-`~/.codex/auth.json` 会违反凭据隔离要求。边界已经由 Worker runbook 和 Codex
-CLI 能力明确，但需要闭合 executable、认证、skill、工具和无人值守参数的执行
-契约，因此按 medium 进入 `specs/`。
+这是可稳定复现的有效运行时和执行拓扑 bug。直接修补内层 CLI 的 executable、认证或
+skill 只能维持偏离原始方案的第二层执行。正确路径是回到 Design，明确外层 Worker
+直接执行，并用 split-phase Controller 保留持久状态与单写边界；复杂度升级为 high，
+再由 ADR 和 Spec 约束实现。
 
 ## 推荐路径
 
 - 在 task lease 和 stage run 创建前解析并验证绝对 Codex executable。
 - 对每次 Stage 显式使用 `--ask-for-approval never`，保留按角色选择 sandbox。
-- 使用 macOS Keychain broker 读取专用 Platform API key，只在单次
-  `codex exec` 父进程环境注入 `CODEX_API_KEY`；禁止复制 Controller/个人
-  ChatGPT 凭据到 task、artifact 或 Stage 可写目录。
+- 删除内层 `codex exec` 和 API-key/Keychain broker；外层 Codex Automation Worker
+  复用自身登录直接执行 StageTask。
+- Controller 提供持久 `worker next` / `worker accept` 围栏，继续独占 SQLite 和
+  GitHub 写入。
 - 在隔离 `HOME` 中只 provision StageTask 声明的受信 skill。
 - 从宿主解析受控工具绝对路径，构造最小 PATH；不得继承完整用户环境。
 - 缺少任一条件时 fail closed，并报告具体运行时能力，不消费 Stage attempt。

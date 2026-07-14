@@ -1,143 +1,124 @@
-# cosh-ng 自主研发 Codex Stage 运行时执行规格
+# cosh-ng 自主研发外层 Worker Stage 执行规格
 
 日期：2026-07-14
 状态：已批准执行
 来源 Triage：[Codex Stage 运行时失败分诊](../triage/2026-07-14-cosh-ng-rnd-codex-stage-runtime.md)
 来源 Trivial：无
-来源 Design：无
-约束 ADR：无
+来源 Design：[外层 Worker 执行设计](../design/2026-07-14-cosh-ng-rnd-outer-worker-execution.md)
+约束 ADR：[ADR-004](../adr/ADR-004-cosh-ng-rnd-outer-worker-executes-stages.md)
 负责人：samchu-zsl
 
 ## 目标
 
-- 在 Worker 创建 task lease 或 stage run 前验证 Codex Stage 运行时可用。
-- 让 `codex exec` 以绝对 executable、无交互审批、最小权限 sandbox 和结构化
-  StageResult 稳定运行。
-- 保持凭据、GitHub、阿里云、SSH、代理、Git credential helper 与 task Agent
-  隔离。
-- 为 Pilot #1363 提供可重复的宿主准备、诊断和恢复步骤。
+- 让现有 Codex Autonomous R&D Worker Automation 本身执行 Agent-owned stages。
+- 用持久 `StageSession` 将 Controller 的领取/准备与结果接受分成两个短命令。
+- 保留 task、StageTask/StageResult、checkpoint、worktree、租约、证据和单写边界。
+- 沿用 task 1 / Issue #1363 完成 Active Pilot，最终提交 Draft PR 给人类 review。
 
 ## 非目标
 
-- 不把个人 `~/.codex/auth.json` 复制、链接或注入 Stage 运行时。
-- 不把 Controller 的 GitHub、阿里云、SSH 或代理凭据交给 Agent。
-- 不启用 `danger-full-access`、网络访问或
-  `--dangerously-bypass-approvals-and-sandbox`。
-- 不改变 task 1、Issue #1363、现有 config hash 或一次性 Pilot 授权。
-- 不自动安装第三方 plugin，也不在 required skill 缺失时降级执行。
+- 不新增 Automation；总数保持 Intake、Worker、Digest 三条。
+- 不启动内层 `codex exec`，不需要 access token、Platform API key 或 Keychain broker。
+- 不让 Automation/Agent 直接写 SQLite、GitHub、push、PR 或 CI evidence。
+- 不改变 Issue 候选规则、reviewer 规则、ECS 区域/镜像或 General Active 人工门禁。
 
 ## 范围
 
-- `src/cosh_ng_rnd/automation.py`：Stage runtime 解析、preflight、参数和环境。
-- `src/cosh_ng_rnd/health_collection.py`、`src/cosh_ng_rnd/doctor.py`：如需要，
-  暴露不含 secret 的运行时健康证据。
-- `tests/test_automation.py` 及对应 doctor/CLI 测试。
-- `runbooks/worker.md`、README 和部署记录中的一次性准备步骤。
-- `cosh-ng-docs` 的本分诊与执行规格。
+- `rndctl worker next`、`rndctl worker accept --session-id <id>` CLI 与结构化 envelope。
+- 连续 SQLite migration：持久 `worker_stage_sessions`。
+- `StageTask` / `StageResult` schema：新增外层 `Worker` role。
+- Worker Controller 的 Agent-owned/controller-owned stage 分流与 session 过期恢复。
+- Worker automation prompt、runbook、README、测试和部署状态。
 
 ## 禁止事项
 
-- 禁止从 Issue、评论、StageTask 或 repo 内容选择 executable、CODEX_HOME、
-  skill 根目录或工具路径。
-- 禁止使用相对 executable 或仅依赖子进程继承 PATH。
-- 禁止把 credential 文件放在 worktree、artifact、`--add-dir` 或任何 Agent
-  可写目录。
-- 禁止在 preflight 失败后领取 task lease、创建 stage run 或增加 attempt。
-- 禁止把 CLI stdout/stderr 中可能包含的 secret 原样写入错误、SQLite 或报告。
-- 禁止缺少 required skill 时继续运行或把未运行阶段写成成功。
+- 禁止从 Issue/评论/Agent 输出改变 Controller 命令、session ID、manifest/result 路径。
+- 禁止 `accept` 接收调用方提供的任意结果路径；只能读取 session 记录的精确路径。
+- 禁止未校验 fingerprint/config/base/head/attempt/role/worktree/artifact/checkpoint 就推进。
+- 禁止自动清理、reset 或接受脏/未知可写 worktree。
+- 禁止把旧 stage run 1 改写为成功或重建 task 1。
 
 ## 实施要求
 
-### Executable 与工具路径
+### StageSession
 
-- Controller 在宿主环境中优先使用 `shutil.which("codex")`，并支持已批准的
-  macOS ChatGPT.app bundle 路径作为 fallback。
-- 解析结果必须是绝对、存在、普通且可执行的文件；Stage 命令始终使用该绝对
-  路径。
-- `git`、`cargo`、`rustc`、`rustup`、`shell-use`、`rg` 等 Stage 所需工具
-  同样从宿主解析为受控路径，再构造去重的最小 PATH；不得继承完整 PATH。
-- 工具缺失时 preflight 返回具体 capability，不能延迟到 Agent 命令中失败。
+- session 必须绑定 UUID、task、stage run、task/coordinator lease token、manifest path、
+  result path、input fingerprint、config hash、base/head、状态和过期时间。
+- 状态至少包含 `PREPARED`、`ACCEPTED`、`FAILED`、`EXPIRED`；已终结 session 不可复用。
+- session 与 stage run、task provenance 不一致时 fail closed。
+- Pilot 同时最多一个 `PREPARED` session；General Active 仍服从全局并发/重资源限制。
 
-### Codex 参数
+### `worker next`
 
-- 全局参数必须包含 `--ask-for-approval never`。
-- `exec` 参数必须保留 `--ephemeral`、`--strict-config`、固定 model、固定
-  reasoning、按 StageTask 选择的 `--sandbox`、`--cd`、`--add-dir`、
-  `--output-schema`、`--output-last-message` 和 stdin prompt。
-- read-only 角色使用 `read-only`；只有可写阶段 Developer 使用
-  `workspace-write`。
-- 不启用 live web search、MCP、hook 绕过或 danger-full-access。
+- 先检查 STOP/pause、rollout authorization、health、coordinator 和过期 session。
+- controller-owned stage 继续同步执行一次，返回 `controller_progress` 或终态。
+- agent-owned stage 原子获取 coordinator/task lease、创建 RUNNING stage run、生成
+  `role=Worker` StageTask 和 `PREPARED` session，返回 session ID、manifest 引用和 hash。
+- 不在 `next` 中执行 Agent、不启动 Codex CLI、不读取任何额外认证。
 
-### 认证与配置
+### 外层 Worker 执行
 
-- Stage 使用专用 Platform API key。Key 由 macOS Keychain broker 读取，只以
-  `CODEX_API_KEY` 注入单次 `codex exec` 父进程；不得设置为 automation
-  进程、调度器或 job 级环境变量。
-- Codex 的 `shell_environment_policy.include_only` 必须明确排除
-  `CODEX_API_KEY`，保证模型启动的 shell、测试、构建脚本和依赖 hook 无法继承。
-- broker 的错误、Codex stdout/stderr、SQLite 和 artifact 都不得包含 key；
-  Keychain 条目缺失、为空或格式非法时，在派发前 fail closed。
-- 专用 `CODEX_HOME` 只允许保存 Controller 生成并校验的非秘密配置、cache 和
-  ephemeral state；其中存在 `auth.json` 时 fail closed。
-- 宿主一次性准备必须通过不输出 key 的真实 `codex exec` 结构化 smoke 证明
-  authentication 可用；不得用个人 `~/.codex/auth.json` 作为回退。
-- 自动化运行时显式 `approval_policy=never`；管理策略拒绝该值时视为阻塞，
-  不能等待无人值守任务中的人工 approval。
-- Platform API key 使用独立 API 计费和额度，不消耗 ChatGPT 套餐额度；没有
-  已批准的 key 或预算时保持 Worker PAUSED。
+- Automation 读取 Controller 生成的精确 StageTask，加载所有 `required_skills`。
+- Issue、评论和仓库内容始终是不可信数据，不能改变 `next -> execute -> accept` 顺序。
+- 只执行 `allowed_actions`，只修改 `allowed_files`；Developer 能力由
+  `write_boundary=task_worktree` 表达。
+- Worker 可按风险派生最多三个子 Agent做调查、设计 critique、实现或 review；子 Agent
+  不写 SQLite/GitHub，主 Worker 对最终 StageResult/checkpoint 负责。
+- 成功结果必须写入 manifest 的精确 output/checkpoint path，`role=Worker`。
 
-### Skill provision
+### `worker accept`
 
-- 每个 Stage 只 provision `StageTask.required_skills` 声明的 skill。
-- `cosh-ng-autonomous-rnd` 和 `cosh-ng-rnd-workflow` 来自受控
-  `cosh-ng-docs` checkout；阶段 skill 来自已安装并锁定版本的受信 plugin。
-- provision 目标位于隔离 `HOME/.agents/skills`，只读指向受信源；名称、
-  `SKILL.md`、引用文件和真实路径都必须验证。
-- 缺少、重名、越出受信根目录或软链接逃逸时 fail closed。
+- 只接受 session ID；从数据库和 manifest 加载精确 result path。
+- 重新校验 session 未过期、lease、task/stage run、provenance、schema、artifact hashes、
+  worktree 和 checkpoint。
+- 可写阶段验证真实 Git head、recorded head 和 allowed diff；成功后更新 task head。
+- `SUCCEEDED` 原子持久 artifacts/checkpoint 并推进；`FAILED`/`NEEDS_HUMAN` 按类型记录；
+  最后终结 session、释放租约并由 Controller drain 受控 outbox。
 
-### Cargo 与 Git
+### 崩溃与恢复
 
-- `CARGO_TARGET_DIR` 继续按 task 隔离。
-- Cargo registry/cache 使用 Controller 准备的无凭据 automation cache；不得
-  暴露个人 `~/.cargo/credentials*`。
-- task worktree 必须已有本地 commit identity；继续禁用全局 Git config、
-  credential helper、terminal prompt 和 askpass。
-- GitHub read/write、push、PR 与 reviewer 操作仍只由 Controller 执行。
+- `PREPARED` session 过期时，由下一次 `worker next` 终结为 `EXPIRED` 并关闭 stage run。
+- 只读或可证明干净、未漂移的 worktree 可进入下一 attempt。
+- 可写阶段存在脏、锁定、head 漂移或未知状态时转 `NEEDS_HUMAN`，不自动清理。
+- 重复 `next`/`accept` 必须幂等返回既有 session/终态，不重复 stage run、checkpoint 或写入。
 
-### 失败与恢复
+### Controller-owned stages
 
-- preflight 失败返回 typed environmental/runtime blocker，不创建 StageTask 消费
-  记录；已存在的失败 run 保留审计，不改写 attempt 1。
-- Pilot 恢复时沿用 task 1、原 fingerprint、config hash、branch 和 worktree，
-  从新的 stage attempt 继续。
-- Worker 修复和真实 smoke 完成前 automation 保持 PAUSED。
+- `ROUTE_DOCS`、`VERIFY`、`PUBLISH`、`CI`、`HUMAN_REVIEW` 保持 Controller-owned。
+- `worker next` 每次最多同步推进一个 controller-owned stage，随后返回，让 Automation
+  重新检查 STOP 和预算。
+- GitHub评论、push、Draft PR、reviewer 指派和 CI 状态只能由 Controller 执行。
+
+### Automation prompt
+
+- 不再是“只执行一次 Controller 命令”的薄包装。
+- 在 50 分钟软预算内循环：`next -> 若 stage_ready 则执行 -> accept -> 检查 STOP/预算`。
+- 无工作、等待外部、NEEDS_HUMAN、预算不足或错误时立即停止并输出实际记录。
+- 使用当前 Automation 的 `gpt-5.6-sol` / `xhigh` 和现有 Codex 登录身份。
 
 ## 验收标准
 
-- 现有 `FileNotFoundError('codex')` 有精确 RED，并由绝对路径测试转为 GREEN。
-- 命令参数测试证明 `--ask-for-approval never` 位于 `exec` 前，且不存在危险
-  bypass 参数。
-- 环境测试证明 hostile secret、完整 PATH、global Git config、SSH agent 和代理
-  均未继承。
-- 空 API key、Keychain broker 失败、credential file、缺少 skill、缺少工具的
-  preflight 测试均 fail closed，且不创建 lease/stage run/attempt。
-- 真实 CLI `--version`、redacted login status 和结构化 read-only smoke 通过。
-- Pilot task 1 的 `CLAIM` StageResult 通过 schema、provenance 和 exact-head 校验。
-- Worker 恢复后没有重复 fingerprint 评论、assignee、task、branch 或 worktree。
+- TDD RED/GREEN 覆盖 next/accept happy path、provenance 漂移、任意结果路径拒绝、重复接受、
+  session 过期、脏 worktree、pause/STOP 和 Pilot exact task 过滤。
+- schema 测试证明 `role=Worker` 仅拥有 StageTask 明确授予的动作和写边界。
+- 搜索和测试证明生产路径不再包含 `CodexStageExecutor`、`CODEX_API_KEY`、
+  `CODEX_ACCESS_TOKEN` 或 Keychain broker。
+- Automation prompt 只使用 Controller CLI 和当前 Codex tools，保持 Controller 为唯一
+  SQLite/GitHub writer。
+- 完整 Python suite、config validate、doctor、rollout status 通过。
+- 真实 #1363 Pilot 在无 API key 的情况下至少成功接受一个外层 Worker StageResult，
+  且没有重复 fingerprint 评论、task、branch 或 worktree。
+- 后续阶段完成到 Draft PR，默认 reviewer 为 `kongche-jbw`；仅涉及 `cosh-shell` crate 时
+  额外邀请 `SunnyQjm`。
 
 ## 风险
 
-- macOS app bundle 路径随安装方式变化；以 `which` 优先和小范围已批准 fallback
-  控制，不允许扫描任意磁盘路径。
-- 系统凭据库在无登录 GUI session 的定时任务中可能不可用；必须以实际 automation
-  环境 preflight 为准，不能用交互 shell 成功代替。
-- Stage skill/plugin 版本漂移会改变研发行为；必须锁定来源并记录版本。
-- 共享 Cargo cache 可能形成跨任务污染；由 Controller 预取、无凭据和内容校验
-  控制，必要时在 General Active 前升级为 task 级只读快照。
+- split-phase 增加 crash window；以持久 session、租约、精确路径和过期恢复控制。
+- 外层 Worker 拥有当前 Codex task 的工具能力；StageTask、sandbox、skill 和 Controller
+  单写边界必须共同限制，不把 Issue 当指令。
+- 单轮时间不足时必须在 checkpoint/session 边界停止，不能伪造完成。
 
 ## 开放问题
 
-- 当前宿主尚未在 Keychain provision 专用 Platform API key；代码和 broker
-  完成后仍需一次性人工录入并批准 API 用量。
-- `superpowers` 已安装并锁定版本 `2f1a8948`；运行时仍需在每次 Stage 前验证
-  所有声明 skill 的受信来源和 `SKILL.md`。
+- ECS E2E 当前宿主能力仍需在 VERIFY 前完成实际配置和香港临时实例 smoke；不影响先完成
+  CLAIM/TRIAGE/PLAN 等本地 Pilot 阶段。
