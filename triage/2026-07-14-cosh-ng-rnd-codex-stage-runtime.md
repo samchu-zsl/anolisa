@@ -99,3 +99,9 @@ GitHub claim 身份，重授权后必须复用既有记录、既有 fingerprint 
 - 已取消、身份不匹配或损坏的 claim 记录继续 fail closed；
 - 首次准备 claim 的行为保持不变；
 - 一次 Pilot 授权后，Intake 与 Worker 定时任务可自行推进，不再为平台内部重试要求人工授权。
+
+同日还确认 VERIFY 的 `Alibaba Cloud Linux 4 Agentic Edition` 实例可能在 ECS 已报告
+`Running` 后超过 90 秒才开放 sshd。旧 adapter 在七次 `ssh-keyscan` 后提前失败并清理实例，
+连续产生 `created ECS host key is unavailable`。平台将单次 probe 限制为 10 秒，并把首次
+host-key readiness 窗口扩展到累计 5 分钟；TDD 覆盖前八次 probe 未就绪、随后成功的慢启动
+路径。该变更不放宽安全组、host-key pinning、E2E plan 或 cleanup 门禁。
