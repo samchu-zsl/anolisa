@@ -79,3 +79,23 @@ skill 只能维持偏离原始方案的第二层执行。正确路径是回到 D
 - 空认证、缺少 required skill、缺少工具时均在 stage run 前 fail closed。
 - 真实 CLI smoke 只写受控 StageResult 目录，不访问 GitHub、SQLite 或凭据文件。
 - 恢复 task 1 后从 `CLAIM` attempt 2 继续，不重建 task 或重复 Issue 评论。
+
+## 2026-07-16 Pilot 重授权后的 Intake 重入缺陷
+
+task 3 已在旧配置下完成 Issue claim、fingerprint 评论、设计、计划和实现。平台为绑定
+新配置，把同一静止 task 重置为 `QUEUED/INTAKE` 并追加精确 Pilot 授权；随后 Active
+Intake 在 `prepare_claim()` 中无条件再次插入 `task_claims.task_id = 3`，触发：
+
+```text
+UNIQUE constraint failed: task_claims.task_id
+```
+
+这不是新的产品决策，也不是需要人类再次批准的状态。`task_claims` 表示同一 task 的稳定
+GitHub claim 身份，重授权后必须复用既有记录、既有 fingerprint comment 与幂等 outbox，
+只追加新的配置授权和状态迁移证据。修复应满足：
+
+- 既有 `ACTIVE` task 被合法重置为 `QUEUED/INTAKE` 后，可再次进入 `CLAIM`；
+- `task_claims`、fingerprint comment、assignee 写入和 claim outbox 均不重复；
+- 已取消、身份不匹配或损坏的 claim 记录继续 fail closed；
+- 首次准备 claim 的行为保持不变；
+- 一次 Pilot 授权后，Intake 与 Worker 定时任务可自行推进，不再为平台内部重试要求人工授权。

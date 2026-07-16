@@ -73,6 +73,20 @@ provenance。
 - session 过期：只读/干净 worktree 可记为环境失败并在下一 attempt 重试；可写阶段出现
   脏或未知 worktree 时转 `NEEDS_HUMAN`，禁止自动推断或清理。
 
+## 持续自治授权
+
+一次精确 Pilot 或 General task 授权，持续授权该 task 在既定 Issue scope、policy 和
+`StageTask` 边界内自主推进到 Draft PR。它不是每个阶段都重新询问人类的授权券：
+
+- 可逆、可测试、不扩权的设计与实现选择由 Worker 采用证据最强的推荐方案；
+- Worker 在 checkpoint 记录备选、假设和理由，供 Draft PR reviewer 审查；
+- 通用 brainstorming/design skill 的“等待批准”由 standing policy 满足，不再产生逐阶段停点；
+- 信息缺失且会改变验收、安全/凭据/隐私、不可逆/生产动作、破坏性迁移、scope 或所有权
+  冲突，以及 bounded retry/reviewer policy 明确规定的情形，才进入 `NEEDS_HUMAN`；
+- `action:needinfo` 继续在 Intake 排除，不创建可执行研发任务。
+
+人类 review 保留在 Draft PR 边界；General Active 仍需 Pilot 复盘，不因本节自动批准。
+
 ## 关键取舍
 
 ### 采用 split-phase Controller，而非单一长命令

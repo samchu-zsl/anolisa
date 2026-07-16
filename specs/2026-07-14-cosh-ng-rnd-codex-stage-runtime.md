@@ -65,6 +65,10 @@
 - Worker 可按风险派生最多三个子 Agent做调查、设计 critique、实现或 review；子 Agent
   不写 SQLite/GitHub，主 Worker 对最终 StageResult/checkpoint 负责。
 - 成功结果必须写入 manifest 的精确 output/checkpoint path，`role=Worker`。
+- 精确 task 授权持续到 Draft PR；范围内、可逆、可测试且不扩权的方案选择自动采用推荐项，
+  并在 checkpoint 记录备选与理由，不因通用 skill 的交互式批准步骤进入人工等待。
+- `NEEDS_HUMAN` 仅用于会改变验收的信息缺失、安全/凭据/隐私、不可逆或生产动作、破坏性
+  迁移、scope/所有权冲突，以及 policy 明确规定的重复失败或 reviewer 冲突。
 
 ### `worker accept`
 
@@ -110,6 +114,8 @@
   且没有重复 fingerprint 评论、task、branch 或 worktree。
 - 后续阶段完成到 Draft PR，默认 reviewer 为 `kongche-jbw`；仅涉及 `cosh-shell` crate 时
   额外邀请 `SunnyQjm`。
+- 自动化契约测试证明“多个合理方案”不会单独触发 `NEEDS_HUMAN`，且 standing autonomy
+  policy 同时出现在 Worker runbook、Automation prompt 与项目 skill 中。
 
 ## 风险
 

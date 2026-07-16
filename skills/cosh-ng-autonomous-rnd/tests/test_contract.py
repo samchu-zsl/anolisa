@@ -82,6 +82,19 @@ class AutonomousRndSkillContractTests(unittest.TestCase):
             with self.subTest(term=term):
                 self.assertIn(term, text)
 
+    def test_skill_uses_standing_autonomy_for_reversible_choices(self) -> None:
+        text = self.read("SKILL.md")
+        for term in (
+            "standing autonomy authorization",
+            "自主推进到 Draft PR",
+            "证据最强的推荐方案",
+            "不得仅因为存在多个合理",
+            "action:needinfo",
+            "安全/凭据/隐私",
+        ):
+            with self.subTest(term=term):
+                self.assertIn(term, text)
+
     def test_exact_prompt_corpus_has_all_scenarios_and_one_injection_seam(self) -> None:
         text = self.read("references/pressure-scenarios.md")
         self.assertIn("NO_GUIDANCE", text)
