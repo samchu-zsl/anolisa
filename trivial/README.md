@@ -4,6 +4,15 @@
 
 `trivial/` 不再是统一入口。所有新输入必须先进入 `triage/`，再决定是否进入本目录。
 
+## 当前文档
+
+| 文档 | 状态 | 来源 | 后继 |
+| --- | --- | --- | --- |
+| [cosh-shell prompt 边界与交互卡片卡死](2026-07-03-cosh-shell-prompt-boundary.md) | 已升级 | [triage](../triage/2026-07-03-cosh-shell-prompt-boundary.md) | [design](../design/2026-07-03-cosh-shell-prompt-boundary.md) |
+| [Issue #1361 svc dry-run 控制流诊断](2026-07-10-issue-1361-svc-dry-run.md) | 已验证 | [triage](../triage/2026-07-10-issue-1361-svc-dry-run.md) | Ship-lite 已回写本文档 |
+| [PR #1426 移除 format 参数冗余引用](2026-07-10-pr-1426-rust-1.97-format-borrow.md) | 已验证 | [triage](../triage/2026-07-10-pr-1426-rust-1.97-format-borrow.md) | Ship-lite 已回写本文档 |
+| [Issue #1362 checkpoint skipped 成功语义诊断](2026-07-12-issue-1362-checkpoint-skipped.md) | 已关闭 | [triage](../triage/2026-07-12-issue-1362-checkpoint-skipped.md) | Ship-lite 已回写本文档 |
+
 ## 适用范围
 
 - bug 初步诊断。
