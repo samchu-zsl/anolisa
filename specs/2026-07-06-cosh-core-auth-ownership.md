@@ -21,7 +21,10 @@
 
 ## 非目标
 
-- 不支持删除 provider。
+- 不支持删除 provider。（2026-07-25 审计注：后续演进已支持删除——
+  `cosh-shell/src/auth/delete_confirm.rs`、`AuthPhase::ConfirmDelete`、
+  registry `auth` domain 的 `delete` action；重命名仍不支持。本条保留
+  作为当时的 spec 边界记录。）
 - 不支持重命名 provider。
 - 不实现项目级 provider selection。
 - 不为非 `cosh-core` adapter 实现完整 auth 管理；其他 adapter 的 auth 面板按现状降级提醒用户。
@@ -114,7 +117,8 @@ model = "qwen3.7-plus"
 - 编辑手动 Aliyun provider 时，不得因为当前环境是 ECS 就隐式转换为 `auth_source = "ecs_ram_role"`。
 - 编辑已有 `auth_source = "ecs_ram_role"` 的 Aliyun provider 时，如果 ECS prepare 返回 manual fallback，必须在进入手动 AK/SK/token 字段前清除旧 `auth_source`。
 - `auth_source = "ecs_ram_role"` 在 core 中是权威状态；只要该字段存在，core 会认为 provider 使用 ECS RAM Role，并不会持久化 AK/SK/token。
-- `/auth` 不提供删除和重命名入口。
+- `/auth` 不提供删除和重命名入口。（2026-07-25 审计注：删除入口已
+  实现，见非目标节注记；重命名仍不支持。）
 
 ### 5. Secret 编辑和展示
 

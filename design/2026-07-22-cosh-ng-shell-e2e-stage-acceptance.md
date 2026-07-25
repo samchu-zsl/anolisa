@@ -1,7 +1,7 @@
 # cosh-ng shell E2E 与长期稳定性阶段验收设计
 
 日期：2026-07-22
-状态：本地门禁、逐测试 registry 与 runner 已实现；mutation 独有证据、真实云验收待完成
+状态：本地门禁、逐测试 registry 与 runner 已在 PR #1699 分支实现（`codex/test-stable-e2e-gates`，尚未合入 main）；mutation 独有证据、真实云验收待完成
 负责人：Codex
 来源 Triage：../triage/2026-07-22-cosh-ng-shell-e2e-stability.md
 来源 Trivial：无
@@ -476,6 +476,12 @@ crates/cosh-shell/e2e/
 crates/cosh-shell/scripts/run-stage-e2e.sh
 crates/cosh-shell/scripts/run-soak.sh
 ```
+
+（2026-07-25 审计注：PR #1699 实际落点为仓库根 `scripts/`（run-test-gates.sh、
+run-stage-e2e.sh、check-test-inventory.sh 等）与根 `e2e/`（manifest.json、
+run.py、result.schema.json、tests/）；无独立 run-soak.sh，soak 是
+`e2e/manifest.json` 中的 case kind（E2E-08）。目录建议与实际落点的偏差
+属实现细节调整，不影响"独立资产、不新增第五个 Rust target"的边界约束。）
 
 - Rust 中可确定复现的 bug 必须下沉到现有 `logic/protocol/shell_host/raw_cli`。
 - `e2e/` 只保存安装产物编排、系统 fixture、case manifest 和 evidence schema。

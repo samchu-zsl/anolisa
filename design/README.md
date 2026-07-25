@@ -14,6 +14,14 @@
 | [cosh-ng 自主研发外层 Worker 执行设计](2026-07-14-cosh-ng-rnd-outer-worker-execution.md) | 已批准 | [triage](../triage/2026-07-14-cosh-ng-rnd-codex-stage-runtime.md) | [ADR-004](../adr/ADR-004-cosh-ng-rnd-outer-worker-executes-stages.md)、[spec](../specs/2026-07-14-cosh-ng-rnd-codex-stage-runtime.md) |
 | [cosh-ng 自主研发 Pilot #1363 准备与授权设计](2026-07-14-cosh-ng-rnd-pilot-1363.md) | 已批准 | [triage](../triage/2026-07-14-cosh-ng-rnd-pilot-1363.md) | [spec](../specs/2026-07-14-cosh-ng-rnd-pilot-1363.md) |
 | [cosh-ng 扩展平台设计](2026-07-17-cosh-ng-extension-platform.md) | 已实现，隔离 ECS E2E 通过，验收已恢复 | [triage](../triage/2026-07-17-cosh-ng-extension-platform.md) | [ADR-005](../adr/ADR-005-cosh-core-owns-extension-lifecycle.md)、[ADR-006](../adr/ADR-006-extension-manifest-identity-consent.md)、[ADR-007](../adr/ADR-007-extension-command-source-policy.md)、[ADR-008](../adr/ADR-008-extension-runtime-security-policy.md)、[阶段 0–4 specs](../specs/README.md)、[符合性审计](../progress/2026-07-20-cosh-ng-extension-platform-conformance-audit.md) |
+| [cosh-core JSONL headless 后端与 shell↔core 进程协议](2026-07-25-cosh-ng-core-jsonl-protocol.md) | 已定稿（回顾性记录） | [triage](../triage/2026-07-25-cosh-ng-retrospective-design-docs.md) | [ADR-010](../adr/ADR-010-cosh-shell-core-jsonl-process-boundary.md) |
+| [Provider 抽象与 aliyun/SysOM provider 集成](2026-07-25-cosh-ng-provider-abstraction.md) | 已定稿（回顾性记录） | [triage](../triage/2026-07-25-cosh-ng-retrospective-design-docs.md) | [ADR-011](../adr/ADR-011-provider-abstraction-boundary.md) |
+| [Hook 系统与审批协议](2026-07-25-cosh-ng-hook-system.md) | 已定稿（回顾性记录） | [triage](../triage/2026-07-25-cosh-ng-retrospective-design-docs.md) | [ADR-012](../adr/ADR-012-hook-protocol-copilot-shell-alignment.md) |
+| [Registry 协议与组件统一 enable/disable 状态](2026-07-25-cosh-ng-registry-component-state.md) | 已定稿（回顾性记录） | [triage](../triage/2026-07-25-cosh-ng-retrospective-design-docs.md) | [ADR-013](../adr/ADR-013-registry-protocol-and-component-state.md) |
+| [Skill 系统：多级加载、热更新与 system prompt 注入](2026-07-25-cosh-ng-skill-system.md) | 已定稿（回顾性记录） | [triage](../triage/2026-07-25-cosh-ng-retrospective-design-docs.md) | [ADR-014](../adr/ADR-014-skill-multi-level-loading.md) |
+| [工具执行框架与安全审批](2026-07-25-cosh-ng-tool-approval-security.md) | 已定稿（回顾性记录） | [triage](../triage/2026-07-25-cosh-ng-retrospective-design-docs.md) | [ADR-015](../adr/ADR-015-tool-approval-security-policy.md) |
+| [结构化 tracing 与 per-turn SLS JSONL 遥测](2026-07-25-cosh-ng-tracing-sls-logging.md) | 已定稿（回顾性记录） | [triage](../triage/2026-07-25-cosh-ng-retrospective-design-docs.md) | 代码仓库 `src/cosh-ng/docs/adr/ADR-009`（SLS 冻结契约） |
+| [slash 命令补全与 registry CRUD 去重设计](2026-07-25-cosh-ng-slash-completion.md) | 已整理；实现未合入 main | [triage](../triage/2026-07-25-cosh-ng-slash-completion.md) | 合入时转正式 spec（原件见 [notes 归档](../notes/2026-07-25-anzheng-docs.md)） |
 
 ## 维护规则
 

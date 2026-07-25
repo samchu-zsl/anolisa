@@ -15,6 +15,12 @@
 | [ADR-007：扩展 slash 管理面与首期 source policy](ADR-007-extension-command-source-policy.md) | 已接受，用户评审修订 | [扩展平台设计](../design/2026-07-17-cosh-ng-extension-platform.md) | [阶段 0/1 生命周期规格](../specs/2026-07-17-cosh-ng-extension-package-lifecycle.md) |
 | [ADR-008：扩展 settings 与 runtime contribution 安全策略](ADR-008-extension-runtime-security-policy.md) | 已接受 | [扩展平台设计](../design/2026-07-17-cosh-ng-extension-platform.md) | [阶段 2 settings/context](../specs/2026-07-17-cosh-ng-extension-settings-context.md)、[阶段 3 MCP](../specs/2026-07-17-cosh-ng-extension-mcp-runtime.md)、[阶段 4 agents/reload](../specs/2026-07-17-cosh-ng-extension-agents-reload.md) |
 | [ADR-009：cosh-ng 测试所有权与阶段门禁](ADR-009-cosh-ng-test-ownership-and-stage-gates.md) | 已接受 | [shell E2E 与长期稳定性设计](../design/2026-07-22-cosh-ng-shell-e2e-stage-acceptance.md) | [代码回归门禁](../specs/2026-07-23-cosh-ng-test-regression-gates.md)、[阶段 E2E runner](../specs/2026-07-23-cosh-ng-stage-e2e-runner.md) |
+| [ADR-010：cosh-shell 与 cosh-core 以 JSONL 子进程协议解耦](ADR-010-cosh-shell-core-jsonl-process-boundary.md) | 已接受（回顾性记录） | [JSONL 后端与进程协议设计](../design/2026-07-25-cosh-ng-core-jsonl-protocol.md) | 无 |
+| [ADR-011：provider 抽象边界与凭据降级策略](ADR-011-provider-abstraction-boundary.md) | 已接受（回顾性记录） | [Provider 抽象设计](../design/2026-07-25-cosh-ng-provider-abstraction.md) | 无 |
+| [ADR-012：hook 协议与 copilot-shell 对齐，审批经 can_use_tool 通道](ADR-012-hook-protocol-copilot-shell-alignment.md) | 已接受（回顾性记录） | [Hook 系统设计](../design/2026-07-25-cosh-ng-hook-system.md) | 无 |
+| [ADR-013：registry 协议承载组件管理面，状态用 disabled 列表持久化](ADR-013-registry-protocol-and-component-state.md) | 已接受（回顾性记录） | [Registry 与组件状态设计](../design/2026-07-25-cosh-ng-registry-component-state.md) | 无 |
+| [ADR-014：skill 五级目录加载与同名高层覆盖](ADR-014-skill-multi-level-loading.md) | 已接受（回顾性记录） | [Skill 系统设计](../design/2026-07-25-cosh-ng-skill-system.md) | 无 |
+| [ADR-015：ShellExec 无条件审批与 token 化只读判定](ADR-015-tool-approval-security-policy.md) | 已接受（回顾性记录） | [工具审批安全设计](../design/2026-07-25-cosh-ng-tool-approval-security.md) | 无 |
 
 ## 维护规则
 

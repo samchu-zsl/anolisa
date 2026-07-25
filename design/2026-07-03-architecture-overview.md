@@ -97,6 +97,7 @@ cosh-shell: 当前 Cargo 依赖上独立，不直接依赖 workspace 内其它 c
 - `raw`：启动指定 shell 的原始 PTY 包装模式。
 - `interactive` / `interactive-demo`：交互式演示或 adapter 驱动入口。
 - `demo` / `host-demo` / `adapter-demo`：开发验证入口。
+- `doctor` / `diagnostics`：环境体检与诊断入口（2026-07-25 审计补充）。
 
 `cosh-shell` 是当前最复杂的子系统，代码组织围绕运行时、PTY、Agent、审批、hooks、证据、UI 渲染和 provider adapter 展开。
 
@@ -169,6 +170,8 @@ provider tool request
 | `diagnostics/` | health collectors、rules、recommendation、suppression。 |
 | `journal/` / `ledger/` | 运行记录和审计账本 facade。 |
 | `i18n/` | 英文、中文和消息 ID。 |
+| `auth/` | auth 面板状态机、provider 管理与凭据流（2026-07-25 审计补充）。 |
+| `activity/` / `command/` / `input/` / `insight/` / `parser/` / `recommendation/` / `types/` | 活动流输出、命令分类、输入处理、洞察、解析、推荐与共享类型 owner 目录（2026-07-25 审计补充；职责以各目录 owner note 为准）。 |
 
 ## 测试策略
 

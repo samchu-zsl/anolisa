@@ -1,7 +1,7 @@
 # cosh-ng 代码回归与测试门禁实施规格
 
 日期：2026-07-23
-状态：本地门禁已实现；shell source owner 收敛、mutation 独有证据和 installed/ECS 验收待完成
+状态：已在 PR #1699 分支实现（`codex/test-stable-e2e-gates`，**尚未合入 main**，main 上无 `scripts/`、`e2e/` 资产）；shell source owner 收敛、mutation 独有证据和 installed/ECS 验收待完成
 来源 Triage：../triage/2026-07-22-cosh-ng-shell-e2e-stability.md
 来源 Trivial：无
 来源 Design：../design/2026-07-22-cosh-ng-shell-e2e-stage-acceptance.md
@@ -85,7 +85,7 @@ scripts/check-test-inventory.sh
 
 ## 当前实施证据与未完成项
 
-- registry 已为同步主线后的 2,865 个 source test 建立稳定 `path::test_name` ID，并按最长匹配规则关联
+- registry 已为同步主线后的 2,865 个 source test 建立稳定 `path::test_name` ID，并按最长匹配规则关联（该数字随 rebase 漂移：分支最新一轮已刷新，main 当前约 3,445 个 test 属性，合入前须重新 sync）
   owner、layer、contract、failure、observable、minimum layer、unique dimension、evidence、cost、
   reliability、gate 和 disposition；漏项、stale rule、重复 ID 与未登记 heavy test 会阻断。
 - `cosh-core` exact lib/bin overlap 已从 25 降至 4；`cosh-shell` 的 550 个 exact overlap 由

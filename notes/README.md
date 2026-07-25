@@ -11,6 +11,8 @@
 | [pve-manjaro 工作区编译验证](2026-07-03-pve-manjaro-build-verification.md) | 验证 | 远程隔离工作区编译记录。 |
 | [pve-manjaro 完整测试验证](2026-07-03-pve-manjaro-workspace-test-verification.md) | 验证 | 远程完整测试、失败 target 和环境差异记录。 |
 | [本地 raw_cli 测试改动审查](2026-07-04-local-raw-cli-test-review.md) | review | 本地 staged/unstaged raw_cli 测试改动审查和定点验证。 |
+| [安正英文设计文档归档与融合索引](2026-07-25-anzheng-docs.md) | 归档索引 | `docs.zip` 7 份英文原件（存于 `2026-07-25-anzheng-docs/`）的处置方式与独特内容去向。 |
+| [文档库与代码一致性审计](2026-07-25-docs-code-consistency-audit.md) | 审查 | 全库 45 份 design/adr/specs 对照 main `64d623e4` 的出入项清单与回写处置。 |
 
 ## 维护规则
 

@@ -119,4 +119,4 @@ crates/cosh-shell/scripts/check-layout.sh
 ## 追加验证记录
 
 - `git diff --check`：通过。
-- `crates/cosh-shell/scripts/check-layout.sh`：失败，仍有 3 个既有 violation group：root `src/logging.rs` implementation/facade、production 文件超过 700 行未登记、source heavy-test risk 未迁移或登记。本轮 patch 未修改 `crates/cosh-shell/src/`，该结果作为既有布局债记录，不作为本轮 raw_cli 修复完成条件。
+- `crates/cosh-shell/scripts/check-layout.sh`：失败，仍有 3 个既有 violation group：root `src/logging.rs` implementation/facade、production 文件超过 700 行未登记、source heavy-test risk 未迁移或登记。本轮 patch 未修改 `crates/cosh-shell/src/`，该结果作为既有布局债记录，不作为本轮 raw_cli 修复完成条件。（2026-07-25 审计注：`src/logging.rs` 已迁入 `runtime/logging.rs` 消除，source heavy-test 项已登记通过；当前仅剩 1 个 violation group——3 个未登记的 >700 行文件 `raw_input/mode.rs`、`raw_input/spawn.rs`、`shell_host/raw_relay.rs`。）

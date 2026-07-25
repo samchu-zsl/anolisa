@@ -1,7 +1,7 @@
 # cosh-ng 阶段 E2E 与 soak runner 实施规格
 
 日期：2026-07-23
-状态：runner 已实现；真实云执行待用户确认
+状态：runner 已在 PR #1699 分支实现（`codex/test-stable-e2e-gates`，**尚未合入 main**）；真实云执行待用户确认
 来源 Triage：../triage/2026-07-22-cosh-ng-shell-e2e-stability.md
 来源 Trivial：无
 来源 Design：../design/2026-07-22-cosh-ng-shell-e2e-stage-acceptance.md
